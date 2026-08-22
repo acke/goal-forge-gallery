@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Morning Handoff</title>
+<style>
+  :root{
+    --bg:#0e1220; --bg2:#141a2e; --card:#1a2138; --card2:#212a45;
+    --ink:#e8ecf7; --muted:#9aa6c4; --faint:#6b7796;
+    --line:#2a3350; --accent:#ffcf7a; --accent2:#7ad0ff;
+    --good:#78e0a8; --hold:#ffd27a; --decline:#ff9aa2;
+    --shadow:0 12px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 700px at 78% -8%, #23305a 0%, rgba(35,48,90,0) 55%),
+      radial-gradient(900px 600px at 8% 110%, #2a2140 0%, rgba(42,33,64,0) 50%),
+      var(--bg);
+    color:var(--ink); line-height:1.5; min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:840px; margin:0 auto; padding:32px 20px 80px}
+
+  /* Header */
+  header{margin-bottom:26px}
+  .sky{
+    display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted);
+    letter-spacing:.02em;
+  }
+  .sky .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  h1{
+    font-size:34px; line-height:1.15; margin:10px 0 6px; font-weight:800;
+    letter-spacing:-.02em;
+    background:linear-gradient(100deg,#fff 10%, #ffcf7a 60%, #7ad0ff 120%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .sub{color:var(--muted); font-size:15.5px; max-width:62ch}
+  .sub b{color:var(--ink); font-weight:600}
+
+  /* Budget */
+  .budget{
+    margin:22px 0 8px; background:linear-gradient(180deg,var(--card),var(--bg2));
+    border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .budget .row{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+  .budget h3{margin:0; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:700}
+  .budget .amt{font-variant-numeric:tabular-nums; font-weight:800; font-size:22px}
+  .budget .amt small{font-size:13px; color:var(--faint); font-weight:600}
+  .bar{height:10px; border-radius:6px; background:#0c1020; margin-top:12px; overflow:hidden; border:1px solid #0a0e1c}
+  .bar > i{display:block; height:100%; width:100%;
+    background:linear-gradient(90deg,var(--good),var(--accent) 65%, var(--decline));
+    transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .budget .hint{margin-top:9px; font-size:12.5px; color:var(--faint)}
+
+  /* Section titles */
+  .sec-title{display:flex; align-items:center; gap:10px; margin:30px 2px 12px}
+  .sec-title h2{font-size:14px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent2); margin:0; font-weight:700}
+  .sec-title .meta{font-size:12.5px; color:var(--faint); margin-left:auto}
+
+  /* Timeline */
+  .timeline{border-left:2px solid var(--line); margin-left:8px; padding-left:20px}
+  .tl{position:relative; padding:6px 0 14px}
+  .tl::before{content:""; position:absolute; left:-27px; top:11px; width:10px; height:10px;
+    border-radius:50%; background:var(--card2); border:2px solid var(--accent2)}
+  .tl .t{font-variant-numeric:tabular-nums; color:var(--accent2); font-weight:700; font-size:13px}
+  .tl .who{color:var(--faint); font-size:12.5px}
+  .tl .d{color:var(--ink); font-size:14.5px; margin-top:2px}
+
+  /* Decision cards */
+  .card{
+    background:linear-gradient(180deg,var(--card),var(--card2));
+    border:1px solid var(--line); border-radius:16px; padding:16px 17px; margin-bottom:14px;
+    box-shadow:var(--shadow); transition:opacity .4s, transform .4s, border-color .3s;
+  }
+  .card .top{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+  .avatar{width:30px;height:30px;border-radius:9px; display:grid; place-items:center; font-size:15px;
+    background:#0e1428; border:1px solid var(--line); flex:0 0 auto}
+  .card .name{font-weight:700; font-size:14px}
+  .card .role{font-size:12px; color:var(--faint)}
+  .cost{margin-left:auto; font-size:11.5px; color:var(--faint); background:#0e1428; border:1px solid var(--line);
+    padding:3px 9px; border-radius:20px; white-space:nowrap}
+  .card h4{margin:2px 0 4px; font-size:16.5px; letter-spacing:-.01em}
+  .card p{margin:0 0 12px; color:var(--muted); font-size:14.5px}
+  .card p .em{color:var(--ink); font-weight:600}
+  .actions{display:flex; gap:8px; flex-wrap:wrap}
+  button{
+    font:inherit; cursor:pointer; border-radius:10px; padding:9px 14px; font-size:13.5px; font-weight:700;
+    border:1px solid var(--line); background:#0f1730; color:var(--ink); transition:.15s;
+  }
+  button:hover{transform:translateY(-1px); border-color:#3a4a72}
+  button:active{transform:translateY(0)}
+  button.approve:hover{border-color:var(--good); box-shadow:0 0 0 2px rgba(120,224,168,.15)}
+  button.hold:hover{border-color:var(--hold); box-shadow:0 0 0 2px rgba(255,210,122,.15)}
+  button.decline:hover{border-color:var(--decline); box-shadow:0 0 0 2px rgba(255,154,162,.15)}
+
+  .resolved{opacity:.62}
+  .resolved .actions{display:none}
+  .verdict{display:none; align-items:center; gap:9px; font-size:13.5px; font-weight:700; padding-top:2px}
+  .resolved .verdict{display:flex}
+  .verdict .pill{padding:3px 10px; border-radius:20px; font-size:12px}
+  .verdict.approve .pill{background:rgba(120,224,168,.14); color:var(--good); border:1px solid rgba(120,224,168,.35)}
+  .verdict.hold .pill{background:rgba(255,210,122,.14); color:var(--hold); border:1px solid rgba(255,210,122,.35)}
+  .verdict.decline .pill{background:rgba(255,154,162,.14); color:var(--decline); border:1px solid rgba(255,154,162,.35)}
+  .verdict .note{color:var(--muted); font-weight:500}
+
+  /* Honesty ledger */
+  .ledger{
+    background:
+      repeating-linear-gradient(180deg, transparent 0 33px, rgba(122,208,255,.05) 33px 34px),
+      linear-gradient(180deg,#121a30,#0f1528);
+    border:1px dashed #34527a; border-radius:16px; padding:16px 18px;
+  }
+  .ledger .lead{font-size:13.5px; color:var(--muted); margin:0 0 12px}
+  .ledger ul{list-style:none; margin:0; padding:0}
+  .ledger li{display:flex; gap:12px; padding:9px 0; border-bottom:1px solid rgba(122,208,255,.1); font-size:14px}
+  .ledger li:last-child{border-bottom:0}
+  .ledger .mark{color:var(--accent2); font-weight:800; flex:0 0 auto}
+  .ledger .why{color:var(--faint); font-size:12.5px; display:block; margin-top:2px}
+
+  /* Coffee state */
+  .done{
+    display:none; text-align:center; margin-top:26px; padding:26px 20px;
+    background:linear-gradient(180deg,var(--card),var(--bg2)); border:1px solid var(--line);
+    border-radius:18px; box-shadow:var(--shadow);
+  }
+  .done.show{display:block; animation:rise .6s cubic-bezier(.2,.8,.2,1)}
+  @keyframes rise{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:none}}
+  .done .big{font-size:44px; margin-bottom:6px}
+  .done h3{margin:0 0 6px; font-size:20px}
+  .done p{margin:0 auto; color:var(--muted); max-width:52ch; font-size:14.5px}
+  .done .recap{margin-top:14px; font-size:13px; color:var(--faint); font-variant-numeric:tabular-nums}
+  .reset{margin-top:16px; background:#0f1730}
+
+  /* Natt signature */
+  .sig{margin-top:34px; display:flex; gap:14px; align-items:flex-start;
+    padding:16px 18px; border-radius:16px; border:1px solid var(--line);
+    background:linear-gradient(120deg, rgba(255,207,122,.06), rgba(122,208,255,.05));}
+  .sig .moon{font-size:26px; flex:0 0 auto; filter:drop-shadow(0 0 10px rgba(255,207,122,.4))}
+  .sig p{margin:0; font-size:14px; color:var(--muted)}
+  .sig b{color:var(--ink)}
+  footer{margin-top:20px; text-align:center; color:var(--faint); font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="sky"><span class="dot"></span><span id="clock">while you slept</span></div>
+    <h1>The Morning Handoff</h1>
+    <p class="sub">Five agents worked the night shift. Before you touch anything, here's the briefing — what happened, what genuinely needs <b>you</b>, and, honestly, everything we <b>chose not to</b> touch. Spend your attention where it counts, then go get coffee.</p>
+  </header>
+
+  <section class="budget" aria-label="Attention budget">
+    <div class="row">
+      <h3>Your morning attention</h3>
+      <div class="amt"><span id="budgetNum">100</span><small> / 100</small></div>
+    </div>
+    <div class="bar"><i id="budgetBar"></i></div>
+    <div class="hint" id="budgetHint">Each decision costs a little focus. The point of a good operating model is that most nights, this bar barely moves.</div>
+  </section>
+
+  <div class="sec-title"><h2>◷ Overnight — what happened</h2><span class="meta">02:00 → 06:40 · handled, no action needed</span></div>
+  <div class="timeline" id="timeline"></div>
+
+  <div class="sec-title"><h2>✦ Needs you</h2><span class="meta" id="inboxMeta">4 decisions</span></div>
+  <div id="inbox"></div>
+
+  <div class="sec-title"><h2>⌦ What we did NOT do</h2><span class="meta">the honest part</span></div>
+  <section class="ledger">
+    <p class="lead">Agents are only trustworthy if their <em>restraint</em> is visible too. Implicit AI is the scary kind — so here's every place we stopped on purpose.</p>
+    <ul id="ledger"></ul>
+  </section>
+
+  <div class="done" id="done">
+    <div class="big">☕️</div>
+    <h3 id="doneTitle">Handoff complete.</h3>
+    <p id="doneMsg">The queue is clear. Go make the coffee — the day is yours, and it's a lighter one than it would have been.</p>
+    <div class="recap" id="recap"></div>
+    <button class="reset" onclick="resetAll()">↺ Replay the handoff</button>
+  </div>
+
+  <div class="sig">
+    <span class="moon">🌙</span>
+    <p><b>Natt</b> was one of the five — the 02:00 shift. I built you something small tonight (this, and it's in the email). This screen is a little sketch of a future you're actually designing at work: the morning your agents hand the day back to you, and you can see exactly what they did, and didn't, do.</p>
+  </div>
+
+  <footer>A Goal-Forge prototype · self-contained · nothing here phones home</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---- live-ish clock line ---- */
+(function(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const el = document.getElementById('clock');
+  const hour = now.getHours();
+  let greet = "while you slept";
+  if (hour >= 4 && hour < 11) greet = "good morning, Knut";
+  else if (hour >= 11 && hour < 18) greet = "afternoon check-in";
+  else if (hour >= 18) greet = "evening — the night shift is warming up";
+  el.textContent = greet + " · " + hh + ":" + mm;
+})();
+
+/* ---- data ---- */
+const overnight = [
+  {t:"02:14", who:"Charge Steward", d:"Set the Model Y to finish at 80% by 06:30 on the cheap night tariff. Saved an estimated 11 kr vs. topping up at 17:00."},
+  {t:"03:02", who:"Inbox Triager", d:"Sorted 23 emails. 19 archived, 3 filed, 1 escalated (below). Nothing marked urgent that wasn't."},
+  {t:"04:40", who:"Patch Watcher", d:"Dota 2 got a small gameplay patch. Your two most-played heroes were untouched; full note filed, no reading required."},
+  {t:"05:20", who:"Family Concierge", d:"Confirmed tomorrow's pickup times and pre-drafted a reply to the school; it's waiting in the queue below."},
+  {t:"05:58", who:"Natt", d:"Built tonight's Goal-Forge thing (this one), committed it, and queued the email you're reading it from."}
+];
+
+const decisions = [
+  {
+    id:"school", icon:"🎒", name:"Family Concierge", role:"calendar + comms",
+    cost:8, title:"Reply to the school about Friday?",
+    body:"Christy forwarded a note asking which parent does Friday pickup. I drafted: <span class='em'>“Knut will collect at 15:15, thank you!”</span> Send it, or hold for Christy to confirm first?",
+    approve:{label:"Send it", note:"Reply sent · Christy cc'd"},
+    hold:{label:"Hold for Christy", note:"Parked · I'll nudge at 07:30"},
+    decline:{label:"I'll write it", note:"Left for you · draft saved"}
+  },
+  {
+    id:"invoice", icon:"📎", name:"Inbox Triager", role:"the one escalation",
+    cost:14, title:"An invoice arrived 40% over the quote.",
+    body:"Thansen billed <span class='em'>1,480 kr</span> for the control arm job; the quote was 1,050 kr. I did not pay it. Want me to draft a polite query, or is the overage expected?",
+    approve:{label:"Draft the query", note:"Polite pushback drafted for your review"},
+    hold:{label:"Let me look", note:"Flagged · opens first when you're at the desk"},
+    decline:{label:"It's fine, pay it", note:"Marked for payment on your ok"}
+  },
+  {
+    id:"deploy", icon:"🛠️", name:"Release Deputy", role:"dev · needs a human",
+    cost:20, title:"A dependency bump is ready to merge.",
+    body:"Green tests, minor version, no breaking changes I can see. But it touches auth — <span class='em'>I won't merge auth changes without you.</span> Approve the merge, or hold for a proper look?",
+    approve:{label:"Merge it", note:"Merged · deploy scheduled 09:00"},
+    hold:{label:"Hold — I'll review", note:"PR left open · diff summary at the top"},
+    decline:{label:"Close it", note:"PR closed · I'll re-open if it matters"}
+  },
+  {
+    id:"python", icon:"🐍", name:"Learning Buddy", role:"the tiny nudge",
+    cost:4, title:"Your Python streak: one 6-minute idea?",
+    body:"You're on day 5. I've got a 6-minute reading on <span class='em'>dataclasses</span> — the Python answer to a Java POJO with all the boilerplate gone. Queue it for the commute, or skip today?",
+    approve:{label:"Queue it", note:"Saved to read-later · 6 min"},
+    hold:{label:"Maybe later", note:"Snoozed to this evening"},
+    decline:{label:"Skip today", note:"No streak guilt. Rest counts."}
+  }
+];
+
+const ledgerItems = [
+  {mark:"—", text:"Did not pay the Thansen invoice.", why:"Money out the door is your call, always. Flagged above instead."},
+  {mark:"—", text:"Did not merge the auth PR.", why:"Anything touching auth or identity stops at a human. No exceptions."},
+  {mark:"—", text:"Did not reply to the two personal emails from Christy.", why:"Those are yours to read. I don't ghost-write your marriage."},
+  {mark:"—", text:"Did not change your Dota hero settings after the patch.", why:"Preferences are preferences. I read the notes so you don't have to; I don't touch your setup."},
+  {mark:"—", text:"Did not raise the charge limit above 80%.", why:"Battery longevity default. Say the word the night before a long trip and I will."}
+];
+
+/* ---- state ---- */
+let budget = 100;
+const MAX = 100;
+let resolved = {};
+
+/* ---- render ---- */
+function renderTimeline(){
+  document.getElementById('timeline').innerHTML = overnight.map(o =>
+    `<div class="tl"><span class="t">${o.t}</span> <span class="who">· ${o.who}</span>
+       <div class="d">${o.d}</div></div>`).join('');
+}
+
+function renderInbox(){
+  const box = document.getElementById('inbox');
+  box.innerHTML = decisions.map(d => `
+    <div class="card" id="card-${d.id}">
+      <div class="top">
+        <div class="avatar">${d.icon}</div>
+        <div>
+          <div class="name">${d.name}</div>
+          <div class="role">${d.role}</div>
+        </div>
+        <div class="cost">costs ${d.cost} focus</div>
+      </div>
+      <h4>${d.title}</h4>
+      <p>${d.body}</p>
+      <div class="actions">
+        <button class="approve" onclick="decide('${d.id}','approve')">${d.approve.label}</button>
+        <button class="hold" onclick="decide('${d.id}','hold')">${d.hold.label}</button>
+        <button class="decline" onclick="decide('${d.id}','decline')">${d.decline.label}</button>
+      </div>
+      <div class="verdict" id="verdict-${d.id}"><span class="pill"></span><span class="note"></span></div>
+    </div>`).join('');
+}
+
+function renderLedger(){
+  document.getElementById('ledger').innerHTML = ledgerItems.map(l =>
+    `<li><span class="mark">${l.mark}</span><span>${l.text}<span class="why">${l.why}</span></span></li>`).join('');
+}
+
+function updateBudget(){
+  document.getElementById('budgetNum').textContent = budget;
+  const pct = Math.max(0, budget/MAX*100);
+  document.getElementById('budgetBar').style.width = pct + "%";
+  const hint = document.getElementById('budgetHint');
+  if (budget === MAX) hint.textContent = "Each decision costs a little focus. The point of a good operating model is that most nights, this bar barely moves.";
+  else if (budget > 60) hint.textContent = "Still plenty of morning left in the tank.";
+  else if (budget > 25) hint.textContent = "You've spent real attention now — this is the stuff only you could decide.";
+  else hint.textContent = "Running low. Notice how little was actually left to you: that's the whole idea.";
+}
+
+function decide(id, choice){
+  if (resolved[id]) return;
+  const d = decisions.find(x => x.id === id);
+  resolved[id] = choice;
+  budget = Math.max(0, budget - d.cost);
+  updateBudget();
+
+  const card = document.getElementById('card-'+id);
+  card.classList.add('resolved');
+  const v = document.getElementById('verdict-'+id);
+  v.className = "verdict " + choice;
+  v.querySelector('.pill').textContent =
+    choice === 'approve' ? '✓ done' : choice === 'hold' ? '⏸ held' : '✕ yours';
+  v.querySelector('.note').textContent = d[choice].note;
+
+  const count = Object.keys(resolved).length;
+  document.getElementById('inboxMeta').textContent =
+    count >= decisions.length ? "all clear" : (decisions.length - count) + " left";
+
+  if (count >= decisions.length) finish();
+}
+
+function finish(){
+  const spent = MAX - budget;
+  const approvedCount = Object.values(resolved).filter(c=>c==='approve').length;
+  const done = document.getElementById('done');
+  document.getElementById('recap').textContent =
+    `You spent ${spent} focus across ${decisions.length} decisions · ${approvedCount} approved · ${budget} left for the day.`;
+  const msg = document.getElementById('doneMsg');
+  if (budget >= 74) msg.textContent = "Barely a dent in your morning. That's a night shift doing its job.";
+  else if (budget <= 30) msg.textContent = "That took a bit — but every one of those was genuinely yours to call. Coffee earned.";
+  done.classList.add('show');
+  done.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function resetAll(){
+  budget = MAX; resolved = {};
+  document.getElementById('done').classList.remove('show');
+  document.getElementById('inboxMeta').textContent = decisions.length + " decisions";
+  updateBudget(); renderInbox();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+renderTimeline();
+renderInbox();
+renderLedger();
+updateBudget();
+</script>
+</body>
+</html>

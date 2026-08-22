@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Last-Hit Dojo</title>
+<style>
+  :root{
+    --bg:#0c1116; --panel:#131b23; --ink:#e8eef2; --muted:#7d8a97;
+    --gold:#f1c40f; --enemy:#e0483a; --ally:#3fb56b; --line:#22303c;
+    --lethal:#ff9e2c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%,#16212b,#0c1116 60%);
+    color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;padding:16px;
+  }
+  .wrap{width:100%;max-width:860px}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  h1{font-size:22px;margin:0;letter-spacing:.3px}
+  h1 .moon{opacity:.8}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+
+  /* HUD */
+  .hud{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-width:78px;flex:1}
+  .stat .k{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat.gold .v{color:var(--gold)}
+  .stat.streak .v{color:#6fc3ff}
+
+  /* Lane */
+  .lane{
+    position:relative;height:330px;border-radius:16px;overflow:hidden;
+    background:
+      linear-gradient(180deg,#1a2a1c 0%, #24371f 38%, #2c2018 62%, #3a2417 100%);
+    border:1px solid var(--line);
+    box-shadow:inset 0 0 60px rgba(0,0,0,.55);
+    touch-action:manipulation;
+  }
+  .lane::before{ /* the clash "river"/road seam */
+    content:"";position:absolute;left:0;right:0;top:calc(50% - 1px);height:2px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent);
+  }
+  .bandlabel{position:absolute;left:10px;font-size:11px;letter-spacing:1px;
+    text-transform:uppercase;color:rgba(255,255,255,.25);font-weight:700;user-select:none}
+  .bandlabel.top{top:8px}
+  .bandlabel.bot{bottom:8px}
+
+  .creep{
+    position:absolute;width:64px;transform:translate(-50%,-50%);
+    transition:left .5s cubic-bezier(.4,0,.2,1), top .5s cubic-bezier(.4,0,.2,1);
+    cursor:pointer;user-select:none;text-align:center;
+  }
+  .creep .body{
+    width:34px;height:34px;margin:0 auto;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+    animation:bob 1.6s ease-in-out infinite;
+    box-shadow:0 3px 0 rgba(0,0,0,.35);
+    position:relative;
+  }
+  .creep.enemy .body{background:linear-gradient(180deg,#ef5a4c,#b5271a);border:1px solid #ff8577}
+  .creep.ally  .body{background:linear-gradient(180deg,#4ecb7f,#218c4c);border:1px solid #7ff0a6}
+  .creep.lethal .body{outline:2px solid var(--lethal);outline-offset:2px;
+    box-shadow:0 0 14px var(--lethal),0 3px 0 rgba(0,0,0,.35)}
+  @keyframes bob{50%{transform:translateY(-3px)}}
+  .creep .hpbar{width:52px;height:7px;margin:5px auto 0;background:#0c0f12;border-radius:4px;
+    overflow:hidden;border:1px solid rgba(0,0,0,.5)}
+  .creep .hpfill{height:100%;width:100%;background:var(--ally);transition:width .08s linear}
+  .creep.enemy .hpfill{background:#e0483a}
+  .creep.lethal .hpfill{background:var(--lethal)}
+  .creep .hpnum{font-size:10px;margin-top:2px;color:#cfd8de;font-variant-numeric:tabular-nums;
+    text-shadow:0 1px 2px #000}
+
+  /* reticle when winding up an attack */
+  .reticle{position:absolute;width:46px;height:46px;border:2px solid #fff;border-radius:50%;
+    transform:translate(-50%,-50%);pointer-events:none;opacity:.9;
+    box-shadow:0 0 10px rgba(255,255,255,.6);animation:spin .4s linear infinite}
+  @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+  .reticle::before,.reticle::after{content:"";position:absolute;background:#fff}
+  .reticle::before{left:50%;top:-6px;width:2px;height:8px;transform:translateX(-50%)}
+  .reticle::after{left:50%;bottom:-6px;width:2px;height:8px;transform:translateX(-50%)}
+
+  /* floating text */
+  .float{position:absolute;transform:translate(-50%,-50%);font-weight:800;font-size:15px;
+    pointer-events:none;text-shadow:0 2px 4px #000;animation:rise 1s ease-out forwards;white-space:nowrap}
+  @keyframes rise{0%{opacity:0;margin-top:0}15%{opacity:1}100%{opacity:0;margin-top:-34px}}
+
+  /* attack-ready pip (hero cooldown) */
+  .cdwrap{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);
+    width:180px;height:8px;background:#0c0f12;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .cdfill{height:100%;width:100%;background:#6fc3ff;transition:width .05s linear}
+  .cdwrap.ready .cdfill{background:#3fb56b}
+  .cdlabel{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);
+    font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+
+  /* controls */
+  .controls{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  button{
+    background:var(--gold);color:#20160a;border:0;border-radius:10px;
+    padding:11px 20px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:.3px;
+    box-shadow:0 3px 0 #b8930b;transition:transform .05s}
+  button:active{transform:translateY(2px);box-shadow:0 1px 0 #b8930b}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+  .toggle{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none}
+  .toggle input{width:16px;height:16px;accent-color:var(--gold)}
+
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.55;margin-top:12px}
+  .hint b{color:#cfd8de;font-weight:700}
+  kbd{background:#0c0f12;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;
+    padding:1px 6px;font-size:12px;font-family:inherit;color:#cfd8de}
+
+  /* overlay screens */
+  .overlay{position:absolute;inset:0;background:rgba(8,12,16,.86);backdrop-filter:blur(3px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    padding:24px;gap:10px;z-index:5}
+  .overlay h2{margin:0;font-size:26px}
+  .overlay p{margin:0;color:#cfd8de;max-width:520px;line-height:1.5;font-size:14px}
+  .overlay .big{font-size:52px;font-weight:800;color:var(--gold);margin:4px 0;font-variant-numeric:tabular-nums}
+  .grade{font-size:20px;font-weight:800;letter-spacing:.5px}
+  .scoreline{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;color:#cfd8de;font-size:14px;margin:2px 0}
+  .scoreline span b{color:#fff}
+  .hidden{display:none!important}
+  .natt{font-style:italic;color:#9fb0bd;font-size:13.5px;max-width:460px}
+  footer{margin-top:16px;color:#4f5c68;font-size:11.5px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span class="moon">🌙</span> The Last-Hit Dojo</h1>
+      <p class="sub">Sixty seconds. Tap the killing blow, not the panic button. — Natt</p>
+    </div>
+  </header>
+
+  <div class="hud">
+    <div class="stat gold"><div class="k">Gold</div><div class="v" id="gold">0</div></div>
+    <div class="stat"><div class="k">Last hits</div><div class="v" id="lh">0</div></div>
+    <div class="stat"><div class="k">Denies</div><div class="v" id="dn">0</div></div>
+    <div class="stat streak"><div class="k">Streak</div><div class="v" id="stk">0</div></div>
+    <div class="stat"><div class="k">Time</div><div class="v" id="time">60</div></div>
+  </div>
+
+  <div class="lane" id="lane">
+    <div class="bandlabel top">Dire creeps — last-hit for gold</div>
+    <div class="bandlabel bot">Radiant creeps — deny below 50%</div>
+    <div class="cdlabel" id="cdlabel">attack ready</div>
+    <div class="cdwrap ready" id="cdwrap"><div class="cdfill" id="cdfill"></div></div>
+
+    <!-- START overlay -->
+    <div class="overlay" id="startScreen">
+      <h2>🪓 The Last-Hit Dojo</h2>
+      <p>Creeps trade blows and bleed out on their own. Your job: land <b>your</b> attack
+      as the killing blow — not a moment early, not a moment late.</p>
+      <p style="color:#9fb0bd">Your hit lands <b>~0.3s after you tap</b> (the attack animation).
+      That delay is the whole game. Lead your target.</p>
+      <div class="scoreline" style="margin-top:6px">
+        <span>🔴 Tap a <b>Dire</b> creep to last-hit → gold</span>
+      </div>
+      <div class="scoreline">
+        <span>🟢 Tap a <b>Radiant</b> creep (once it's low) to deny it from the enemy</span>
+      </div>
+      <button id="startBtn">Enter the lane ▸</button>
+      <label class="toggle" style="margin-top:4px">
+        <input type="checkbox" id="trainerToggle" checked>
+        Training wheels — glow creeps gold when a hit would kill them
+      </label>
+    </div>
+
+    <!-- END overlay -->
+    <div class="overlay hidden" id="endScreen">
+      <h2>Wave's over 🌙</h2>
+      <div class="big" id="finalGold">0</div>
+      <div class="grade" id="grade">—</div>
+      <div class="scoreline">
+        <span><b id="fLh">0</b> last hits</span>
+        <span><b id="fMiss">0</b> missed</span>
+        <span><b id="fDn">0</b> denies</span>
+        <span><b id="fAcc">0%</b> accuracy</span>
+        <span><b id="fGpm">0</b> GPM</span>
+      </div>
+      <p class="natt" id="nattLine">—</p>
+      <button id="againBtn">Run it back ▸</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="ghost" id="restartBtn">↻ Restart</button>
+    <label class="toggle">
+      <input type="checkbox" id="liveTrainer" checked>
+      Training wheels (gold glow on lethal)
+    </label>
+    <label class="toggle">
+      <input type="checkbox" id="numToggle" checked>
+      Show HP numbers
+    </label>
+  </div>
+
+  <p class="hint">
+    <b>How to play:</b> tap/click a creep to swing at it. You do <b>42 damage</b> per hit,
+    creeps have <b>550 HP</b>, and there's a short cooldown between swings (the blue bar).
+    A swing lands after the animation delay, so a creep on <b>~55 HP and falling</b> is your
+    real target, not one already at 42. Deny your own (Radiant) creeps only once they drop
+    below half. On desktop you can also press <kbd>Space</kbd> to swing at whatever your
+    cursor last touched.<br>
+    <b>Why this exists:</b> last-hitting is the one Dota skill you can't fake, and the
+    animation-delay timing is exactly what separates a 30 GPM lane from a 90 GPM one.
+    Now you can drill it in a browser tab between queues. — Natt
+  </p>
+
+  <footer>Built at 02:00 in Malmö · Goal-Forge · no server, no internet, no ads — just creeps.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- tunables -------------------------------------------------------------
+  var DMG        = 42;      // your attack damage
+  var MAXHP      = 550;     // creep max hp
+  var ATTACK_PT  = 0.30;    // seconds of windup before damage lands
+  var COOLDOWN   = 0.85;    // seconds between swings
+  var ROUND_LEN  = 60;      // seconds
+  var MAX_PER_SIDE = 5;     // max creeps per band on screen
+  var SPAWN_START= 1.5;     // seconds between spawns at start
+  var SPAWN_MIN  = 0.70;    // fastest spawn interval late game
+
+  // ---- element refs ---------------------------------------------------------
+  var lane   = document.getElementById('lane');
+  var goldEl = document.getElementById('gold');
+  var lhEl   = document.getElementById('lh');
+  var dnEl   = document.getElementById('dn');
+  var stkEl  = document.getElementById('stk');
+  var timeEl = document.getElementById('time');
+  var cdfill = document.getElementById('cdfill');
+  var cdwrap = document.getElementById('cdwrap');
+  var cdlabel= document.getElementById('cdlabel');
+  var startScreen = document.getElementById('startScreen');
+  var endScreen   = document.getElementById('endScreen');
+
+  var liveTrainer = document.getElementById('liveTrainer');
+  var numToggle   = document.getElementById('numToggle');
+  var trainerToggle = document.getElementById('trainerToggle');
+
+  // ---- state ----------------------------------------------------------------
+  var creeps = [];
+  var slots  = { enemy: [], ally: [] }; // occupancy arrays
+  var nextId = 1;
+  var gold=0, lastHits=0, denies=0, misses=0, streak=0, bestStreak=0;
+  var cd = 0;                 // remaining cooldown
+  var windup = 0;             // remaining windup
+  var attackTarget = null;    // creep being swung at
+  var reticleEl = null;
+  var hoverCreep = null;      // last creep the cursor touched (for spacebar)
+  var timeLeft = ROUND_LEN;
+  var running = false;
+  var spawnTimer = 0;
+  var lastT = 0;
+
+  for (var i=0;i<MAX_PER_SIDE;i++){ slots.enemy.push(false); slots.ally.push(false); }
+
+  // slot geometry: 5 slots spread across the lane width
+  function slotLeft(idx){ return 12 + idx*(76/(MAX_PER_SIDE-1)); } // percent 12..88
+  function bandTop(side){ return side==='enemy' ? 26 : 74; }       // percent
+
+  function freeSlot(side){
+    var arr = slots[side];
+    for (var i=0;i<arr.length;i++){ if(!arr[i]) return i; }
+    return -1;
+  }
+
+  // ---- creep lifecycle ------------------------------------------------------
+  function spawn(side){
+    var slot = freeSlot(side);
+    if (slot < 0) return;
+    slots[side][slot] = true;
+
+    var el = document.createElement('div');
+    el.className = 'creep ' + side;
+    el.style.left = slotLeft(slot) + '%';
+    el.style.top  = bandTop(side) + '%';
+    el.innerHTML =
+      '<div class="body">'+(side==='enemy'?'👹':'🛡️')+'</div>'+
+      '<div class="hpbar"><div class="hpfill"></div></div>'+
+      '<div class="hpnum"></div>';
+
+    var creep = {
+      id: nextId++, side: side, slot: slot,
+      hp: MAXHP, maxhp: MAXHP,
+      decay: rnd(42,66),          // hp lost per second (combat)
+      decayTimer: rnd(0.4,0.9),   // when to re-roll decay
+      el: el,
+      fill: el.querySelector('.hpfill'),
+      num:  el.querySelector('.hpnum'),
+      body: el.querySelector('.body'),
+      dead: false, lethalNow:false
+    };
+
+    el.addEventListener('pointerdown', function(ev){
+      ev.preventDefault();
+      hoverCreep = creep;
+      tryAttack(creep);
+    });
+    el.addEventListener('pointerenter', function(){ hoverCreep = creep; });
+
+    lane.appendChild(el);
+    creeps.push(creep);
+  }
+
+  function rnd(a,b){ return a + Math.random()*(b-a); }
+
+  function removeCreep(creep, naturally){
+    if (creep.dead) return;
+    creep.dead = true;
+    slots[creep.side][creep.slot] = false;
+    if (attackTarget === creep){ attackTarget = null; clearReticle(); }
+
+    if (naturally){
+      if (creep.side === 'enemy'){
+        misses++;                 // an enemy creep you failed to last-hit
+        streak = 0; renderStreak();
+        floatText(creep, 'missed', '#ff6b5e');
+      }
+      // ally dying naturally = a deny you passed on; no penalty, denies are bonus
+    }
+    // fade + remove element
+    creep.el.style.transition = 'opacity .25s, transform .25s';
+    creep.el.style.opacity = '0';
+    creep.el.style.transform = 'translate(-50%,-50%) scale(.6)';
+    var el = creep.el;
+    setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); }, 260);
+
+    var idx = creeps.indexOf(creep);
+    if (idx>=0) creeps.splice(idx,1);
+  }
+
+  // ---- attacking ------------------------------------------------------------
+  function tryAttack(creep){
+    if (!running || creep.dead) return;
+    if (cd > 0) { pulseCooldown(); return; }
+    // deny rule: can only target allied creep below 50%
+    if (creep.side === 'ally' && creep.hp > creep.maxhp*0.5){
+      floatText(creep, 'not yet', '#8aa0af');
+      return;
+    }
+    // begin swing
+    attackTarget = creep;
+    windup = ATTACK_PT;
+    showReticle(creep);
+  }
+
+  function landAttack(){
+    var creep = attackTarget;
+    attackTarget = null;
+    clearReticle();
+    cd = COOLDOWN;               // cooldown starts once the hit lands
+    if (!creep || creep.dead) return; // target already died -> whiffed
+    creep.hp -= DMG;
+    if (creep.hp <= 0){
+      creep.hp = 0;
+      if (creep.side === 'enemy'){
+        var g = Math.round(38 + Math.random()*8);
+        var mult = 1 + Math.min(1, Math.floor(streak/5)*0.25); // up to 2x
+        g = Math.round(g * mult);
+        gold += g; lastHits++; streak++; bestStreak=Math.max(bestStreak,streak);
+        floatText(creep, '+'+g + (mult>1?(' ×'+mult):''), '#f1c40f');
+        renderStreak();
+      } else {
+        denies++; streak++; bestStreak=Math.max(bestStreak,streak);
+        floatText(creep, 'DENIED', '#7ff0a6');
+        renderStreak();
+      }
+      goldEl.textContent = gold;
+      lhEl.textContent = lastHits;
+      dnEl.textContent = denies;
+      removeCreep(creep, false);
+    } else {
+      // a real hit but not lethal -> you pushed the lane a touch
+      floatText(creep, '−'+DMG, '#c9d2d8');
+    }
+  }
+
+  // ---- reticle & floats -----------------------------------------------------
+  function showReticle(creep){
+    clearReticle();
+    reticleEl = document.createElement('div');
+    reticleEl.className = 'reticle';
+    reticleEl.style.left = creep.el.style.left;
+    reticleEl.style.top  = creep.el.style.top;
+    lane.appendChild(reticleEl);
+  }
+  function clearReticle(){ if(reticleEl && reticleEl.parentNode){ reticleEl.parentNode.removeChild(reticleEl);} reticleEl=null; }
+
+  function floatText(creep, text, color){
+    var f = document.createElement('div');
+    f.className = 'float';
+    f.textContent = text;
+    f.style.color = color;
+    f.style.left = creep.el.style.left;
+    f.style.top  = 'calc(' + creep.el.style.top + ' - 22px)';
+    lane.appendChild(f);
+    setTimeout(function(){ if(f.parentNode) f.parentNode.removeChild(f); }, 1000);
+  }
+
+  function pulseCooldown(){
+    cdwrap.style.boxShadow = '0 0 0 2px #ff6b5e';
+    setTimeout(function(){ cdwrap.style.boxShadow=''; }, 140);
+  }
+
+  function renderStreak(){ stkEl.textContent = streak; }
+
+  // ---- main loop ------------------------------------------------------------
+  function tick(now){
+    if (!running){ return; }
+    var dt = Math.min(0.05, (now - lastT)/1000 || 0);
+    lastT = now;
+
+    timeLeft -= dt;
+    if (timeLeft <= 0){ timeLeft = 0; endRound(); return; }
+    timeEl.textContent = Math.ceil(timeLeft);
+
+    // spawn cadence tightens as the clock ticks down
+    var progress = 1 - (timeLeft/ROUND_LEN);
+    var interval = SPAWN_START - (SPAWN_START-SPAWN_MIN)*progress;
+    spawnTimer -= dt;
+    if (spawnTimer <= 0){
+      spawnTimer = interval;
+      spawn('enemy'); spawn('ally');
+    }
+
+    // cooldown / windup
+    if (cd > 0){ cd -= dt; if (cd<0) cd=0; }
+    if (windup > 0){
+      windup -= dt;
+      if (windup <= 0){ windup = 0; landAttack(); }
+    }
+    // cooldown bar
+    var frac = cd>0 ? (cd/COOLDOWN) : 0;
+    cdfill.style.width = (100 - frac*100) + '%';
+    if (cd>0){ cdwrap.classList.remove('ready'); cdlabel.textContent='reloading…'; }
+    else { cdwrap.classList.add('ready'); cdlabel.textContent='attack ready'; }
+
+    // advance creeps
+    var showNums = numToggle.checked;
+    var hint = liveTrainer.checked;
+    for (var i=creeps.length-1; i>=0; i--){
+      var c = creeps[i];
+      // re-roll decay occasionally for a lively trade
+      c.decayTimer -= dt;
+      if (c.decayTimer <= 0){ c.decay = rnd(38,70); c.decayTimer = rnd(0.4,0.9); }
+      c.hp -= c.decay * dt;
+      if (c.hp <= 0){ c.hp = 0; removeCreep(c, true); continue; }
+
+      var pct = (c.hp/c.maxhp)*100;
+      c.fill.style.width = pct + '%';
+      c.num.style.display = showNums ? 'block' : 'none';
+      if (showNums) c.num.textContent = Math.ceil(c.hp);
+
+      // lethal glow: would this hit kill it? (trainer hint)
+      var lethal = hint && c.hp <= DMG && !(c.side==='ally' && c.hp>c.maxhp*0.5);
+      if (lethal !== c.lethalNow){
+        c.lethalNow = lethal;
+        c.el.classList.toggle('lethal', lethal);
+      }
+    }
+    // keep reticle glued to a moving target's slot (they don't move, but safe)
+    if (reticleEl && attackTarget){
+      reticleEl.style.left = attackTarget.el.style.left;
+      reticleEl.style.top  = attackTarget.el.style.top;
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  // ---- round control --------------------------------------------------------
+  function resetState(){
+    // clear creeps
+    creeps.forEach(function(c){ if(c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
+    creeps = [];
+    for (var i=0;i<MAX_PER_SIDE;i++){ slots.enemy[i]=false; slots.ally[i]=false; }
+    clearReticle();
+    gold=0; lastHits=0; denies=0; misses=0; streak=0; bestStreak=0;
+    cd=0; windup=0; attackTarget=null; timeLeft=ROUND_LEN; spawnTimer=0.4;
+    goldEl.textContent='0'; lhEl.textContent='0'; dnEl.textContent='0';
+    stkEl.textContent='0'; timeEl.textContent=ROUND_LEN;
+    cdfill.style.width='100%'; cdwrap.classList.add('ready'); cdlabel.textContent='attack ready';
+  }
+
+  function startRound(){
+    resetState();
+    startScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
+    running = true;
+    lastT = performance.now();
+    requestAnimationFrame(tick);
+  }
+
+  function endRound(){
+    running = false;
+    clearReticle();
+    var attempts = lastHits + misses;
+    var acc = attempts ? Math.round(lastHits/attempts*100) : 0;
+    var gpm = Math.round(gold / (ROUND_LEN/60));
+
+    document.getElementById('finalGold').textContent = gold + ' g';
+    document.getElementById('fLh').textContent = lastHits;
+    document.getElementById('fMiss').textContent = misses;
+    document.getElementById('fDn').textContent = denies;
+    document.getElementById('fAcc').textContent = acc + '%';
+    document.getElementById('fGpm').textContent = gpm;
+
+    var grade, line, col;
+    if (lastHits >= 34 && acc >= 75){ grade='S — Miracle- would nod'; col='#f1c40f';
+      line='That is a carry lane. If Dota queues get quiet, blame the dojo.'; }
+    else if (lastHits >= 24){ grade='A — real lane control'; col='#7ff0a6';
+      line='Clean hands. The animation delay clearly stopped surprising you.'; }
+    else if (lastHits >= 15){ grade='B — solid, keep drilling'; col='#6fc3ff';
+      line='You are leading your target now. Ten more per game and the whole map opens up.'; }
+    else if (lastHits >= 7){ grade='C — the delay got you'; col='#c9d2d8';
+      line='Half your swings were a beat early. Aim for ~55 HP and falling, not 42.'; }
+    else { grade='D — panic-clicking'; col='#ff9e2c';
+      line='Slow down. One creep at a time. The gold waits for the killing blow, not the fastest tap.'; }
+
+    var gradeEl = document.getElementById('grade');
+    gradeEl.textContent = grade; gradeEl.style.color = col;
+    document.getElementById('nattLine').textContent =
+      '— ' + line + (bestStreak>=8 ? '  (best streak: '+bestStreak+' 🔥)' : '');
+    endScreen.classList.remove('hidden');
+  }
+
+  // ---- wiring ---------------------------------------------------------------
+  document.getElementById('startBtn').addEventListener('click', function(){
+    liveTrainer.checked = trainerToggle.checked;
+    startRound();
+  });
+  document.getElementById('againBtn').addEventListener('click', startRound);
+  document.getElementById('restartBtn').addEventListener('click', function(){
+    running=false; resetState(); startScreen.classList.remove('hidden'); endScreen.classList.add('hidden');
+  });
+
+  // spacebar swings at last-hovered creep (desktop nicety)
+  window.addEventListener('keydown', function(e){
+    if (e.code === 'Space'){
+      e.preventDefault();
+      if (running && hoverCreep && !hoverCreep.dead) tryAttack(hoverCreep);
+    }
+  });
+
+  // keep the two trainer toggles in sync
+  liveTrainer.addEventListener('change', function(){ trainerToggle.checked = liveTrainer.checked; });
+
+})();
+</script>
+</body>
+</html>

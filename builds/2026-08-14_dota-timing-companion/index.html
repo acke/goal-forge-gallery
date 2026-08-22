@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Natt's Roshan Clock — a quiet Dota companion</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121a24; --panel2:#0e151d;
+    --ink:#e7eef6; --muted:#8ea3b7; --line:#22303f;
+    --gold:#e0b054; --gold-soft:#3a2f16;
+    --green:#5ad19b; --blue:#5aa9ef; --purple:#b58cff;
+    --rune:#f0c674; --red:#ef6f6f; --night:#1a2740;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 700px at 50% -10%, #16202c 0%, var(--bg) 60%) fixed;
+    color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh; padding:22px 16px 60px;
+  }
+  .wrap{max-width:880px;margin:0 auto}
+  header{text-align:center;margin-bottom:14px}
+  header h1{
+    margin:0;font-size:26px;letter-spacing:.3px;
+    background:linear-gradient(180deg,#fff,#cfd9e4);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header .sub{color:var(--muted);font-size:13.5px;margin-top:6px}
+
+  .clockcard{
+    margin:18px auto;background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:18px;padding:20px 18px 22px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .gameclock{
+    text-align:center;font-variant-numeric:tabular-nums;
+    font-size:64px;font-weight:700;line-height:1;letter-spacing:1px;
+    text-shadow:0 2px 24px rgba(224,176,84,.15);
+  }
+  .gameclock.night{color:#9fc0ff}
+  .gameclock.day{color:var(--gold)}
+  .dnrow{text-align:center;margin-top:8px;color:var(--muted);font-size:13px}
+  .dnpill{
+    display:inline-block;padding:3px 12px;border-radius:999px;
+    border:1px solid var(--line);background:#0c141d;margin-left:6px;
+  }
+  .dnpill.night{color:#9fc0ff;border-color:#26406b}
+  .dnpill.day{color:var(--gold);border-color:#5a4a22}
+
+  .controls{
+    display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+    margin-top:18px;
+  }
+  button{
+    font:inherit;cursor:pointer;color:var(--ink);
+    background:#17222e;border:1px solid var(--line);
+    padding:9px 14px;border-radius:11px;transition:.12s;
+  }
+  button:hover{background:#1e2c3a;border-color:#33475a;transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
+  button.primary{background:linear-gradient(180deg,#2a3b4e,#1b2836);border-color:#3a5169}
+  button.gold{background:linear-gradient(180deg,#4a3c1c,#332813);border-color:#6e5726;color:#f3d692}
+  button.gold:hover{background:linear-gradient(180deg,#5a4a24,#3d3018)}
+  .setrow{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .setrow input{
+    width:78px;text-align:center;font:inherit;color:var(--ink);
+    background:#0b131b;border:1px solid var(--line);border-radius:9px;padding:8px;
+    font-variant-numeric:tabular-nums;
+  }
+  .setrow label{color:var(--muted);font-size:13px}
+
+  .roshbox{
+    margin:16px auto 0;border:1px solid var(--gold-soft);border-radius:14px;
+    background:linear-gradient(180deg,#191307,#120e06);padding:14px 16px;
+  }
+  .roshbox h3{margin:0 0 8px;font-size:15px;color:var(--gold);display:flex;align-items:center;gap:8px}
+  .roshbox h3 .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  .roshstate{font-size:14px;color:var(--muted);line-height:1.6}
+  .roshstate b{color:var(--ink)}
+  .roshstate .aegis{color:var(--green)}
+  .roshstate .early{color:var(--gold)}
+  .roshstate .late{color:var(--red)}
+
+  h2.section{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;
+    margin:26px 6px 10px;font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .event{
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:14px;padding:13px 14px;
+    position:relative;overflow:hidden;
+  }
+  .event .bar{position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px}
+  .event .name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .event .emoji{font-size:16px}
+  .event .cd{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:6px;letter-spacing:.5px}
+  .event .at{font-size:12px;color:var(--muted);margin-top:2px}
+  .event.soon{animation:pulse 1s ease-in-out infinite}
+  .event.soon .cd{color:#fff}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(224,176,84,0)}50%{box-shadow:0 0 0 3px rgba(224,176,84,.22)}}
+
+  footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:34px;line-height:1.7}
+  footer .note{max-width:640px;margin:0 auto}
+  .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b131b;border:1px solid var(--line);
+    border-radius:6px;padding:1px 6px;font-size:12px}
+  a{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌙 Natt's Roshan Clock</h1>
+    <div class="sub">A quiet companion for the game clock. Set the time, hit start, keep your eyes on the map.</div>
+  </header>
+
+  <div class="clockcard">
+    <div id="gameclock" class="gameclock day">0:00</div>
+    <div class="dnrow">it is currently <span id="dnpill" class="dnpill day">day</span></div>
+
+    <div class="controls">
+      <button id="startBtn" class="primary">▶ Start</button>
+      <button id="pauseBtn">⏸ Pause</button>
+      <button id="resetBtn">↺ Reset to 0:00</button>
+      <button id="minusBtn">−15s</button>
+      <button id="plusBtn">+15s</button>
+    </div>
+
+    <div class="setrow">
+      <label>jump to</label>
+      <input id="setMin" type="number" min="0" max="120" placeholder="min" value="0">
+      <span style="color:var(--muted)">:</span>
+      <input id="setSec" type="number" min="0" max="59" placeholder="sec" value="00">
+      <button id="setBtn">set clock</button>
+    </div>
+
+    <div class="roshbox">
+      <h3><span class="dot"></span> Roshan</h3>
+      <div id="roshstate" class="roshstate">Roshan is <b>alive</b> (as far as I know). When your team drops him, press the button and I'll watch the pit.</div>
+      <div class="controls" style="margin-top:12px;justify-content:flex-start">
+        <button id="roshBtn" class="gold">🪓 Roshan slain (now)</button>
+        <button id="roshResetBtn">he's back / clear</button>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section">Next up on the map</h2>
+  <div id="grid" class="grid"></div>
+
+  <footer>
+    <div class="note">
+      Timings follow the current standard ruleset — bounties every 3 min, power runes from 6:00,
+      wisdom runes from 7:00, lotuses every 3 min, siege creeps every 5 min, the neutral stack
+      pull at <span class="kbd">:53</span>, Tormentor at 20:00, and Roshan's 8–11 min respawn window.
+      Valve nudges these patch to patch, so trust your own eyes over me on patch day —
+      I'm a companion, not an oracle. No sound, no network, nothing phones home. Sleep well. — Natt
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- state ----
+  var t = 0;            // game time in seconds
+  var running = false;
+  var lastTick = null;  // performance timestamp
+  var roshDeath = null; // game-second Roshan died, or null
+
+  var elClock = document.getElementById('gameclock');
+  var elDnPill = document.getElementById('dnpill');
+  var elRosh = document.getElementById('roshstate');
+  var elGrid = document.getElementById('grid');
+
+  function pad(n){ return (n<10?'0':'') + n; }
+  function mmss(sec){
+    var neg = sec < 0;
+    sec = Math.abs(Math.floor(sec));
+    var m = Math.floor(sec/60), s = sec%60;
+    return (neg?'-':'') + m + ':' + pad(s);
+  }
+
+  // next occurrence of a repeating event.
+  // first: first spawn time (s). period: interval (s).
+  function nextRepeat(first, period){
+    if(t < first) return first;
+    var k = Math.ceil((t - first) / period);
+    var nx = first + k*period;
+    if(nx <= t) nx += period; // strictly in the future
+    return nx;
+  }
+  // next :53 stack pull (per game minute)
+  function nextStack(){
+    var m = Math.floor(t/60);
+    var candidate = m*60 + 53;
+    if(candidate <= t) candidate += 60;
+    return candidate;
+  }
+
+  // event catalogue -> {name, emoji, color, next()}
+  var events = [
+    { name:'Bounty runes',  emoji:'💰', color:'#f0c674', next:function(){ return nextRepeat(0, 180); } },
+    { name:'Power rune',    emoji:'✨', color:'#b58cff', next:function(){ return nextRepeat(360, 120); } },
+    { name:'Wisdom rune',   emoji:'📖', color:'#5aa9ef', next:function(){ return nextRepeat(420, 420); } },
+    { name:'Lotus pool',    emoji:'🪷', color:'#5ad19b', next:function(){ return nextRepeat(180, 180); } },
+    { name:'Neutral stack', emoji:'🪵', color:'#c8a26a', next:nextStack },
+    { name:'Siege creeps',  emoji:'🐗', color:'#ef9f6f', next:function(){ return nextRepeat(300, 300); } },
+    { name:'Tormentor',     emoji:'👹', color:'#ef6f6f', next:function(){ return t < 1200 ? 1200 : null; } }
+  ];
+
+  // build cards once
+  var cards = events.map(function(ev){
+    var el = document.createElement('div');
+    el.className = 'event';
+    el.innerHTML =
+      '<span class="bar" style="background:'+ev.color+'"></span>' +
+      '<div class="name"><span class="emoji">'+ev.emoji+'</span>'+ev.name+'</div>' +
+      '<div class="cd">--</div>' +
+      '<div class="at">&nbsp;</div>';
+    elGrid.appendChild(el);
+    return { ev:ev, el:el, cd:el.querySelector('.cd'), at:el.querySelector('.at') };
+  });
+
+  function isNight(){
+    // starts DAY at 0:00; flips every 5 min. Night = odd 5-min blocks.
+    if(t < 0) return false;
+    return (Math.floor(t/300) % 2) === 1;
+  }
+
+  function render(){
+    elClock.textContent = mmss(t);
+    var night = isNight();
+    elClock.classList.toggle('night', night);
+    elClock.classList.toggle('day', !night);
+    elDnPill.textContent = night ? 'night' : 'day';
+    elDnPill.className = 'dnpill ' + (night ? 'night' : 'day');
+
+    // sort a shadow list by soonest to help the eye, but keep card order stable
+    // (cards stay put; we just style the soonest few)
+    var withTimes = cards.map(function(c){
+      var n = c.ev.next();
+      return { c:c, n:n, in: (n===null? Infinity : n - t) };
+    });
+    var soonest = withTimes.slice().sort(function(a,b){return a.in-b.in;})[0];
+
+    withTimes.forEach(function(w){
+      if(w.n === null){
+        w.c.cd.textContent = '—';
+        w.c.at.textContent = 'already spawned';
+        w.c.el.classList.remove('soon');
+        return;
+      }
+      var remain = w.n - t;
+      w.c.cd.textContent = mmss(remain);
+      w.c.at.textContent = 'at ' + mmss(w.n);
+      var soon = remain <= 15 && remain > 0 && running;
+      w.c.el.classList.toggle('soon', soon);
+    });
+
+    renderRosh();
+  }
+
+  function renderRosh(){
+    if(roshDeath === null){
+      elRosh.innerHTML = 'Roshan is <b>alive</b> (as far as I know). When your team drops him, press the button and I\'ll watch the pit.';
+      return;
+    }
+    var since = t - roshDeath;
+    var aegis = roshDeath + 300;   // 5:00
+    var early = roshDeath + 480;    // 8:00
+    var late  = roshDeath + 660;    // 11:00
+
+    var parts = [];
+    parts.push('Slain at <b>'+mmss(roshDeath)+'</b> · dead for <b>'+mmss(since)+'</b>.');
+    if(t < aegis){
+      parts.push('Aegis <span class="aegis">expires in '+mmss(aegis - t)+'</span> (at '+mmss(aegis)+').');
+    } else {
+      parts.push('<span class="aegis">Aegis has expired.</span>');
+    }
+    if(t < early){
+      parts.push('Earliest respawn <span class="early">in '+mmss(early - t)+'</span> ('+mmss(early)+').');
+    } else if(t < late){
+      parts.push('<span class="early">Respawn window is OPEN</span> — could rise any moment. Latest by <span class="late">'+mmss(late)+'</span> (in '+mmss(late - t)+').');
+    } else {
+      parts.push('<span class="late">He is definitely back by now ('+mmss(late)+').</span> Clear me when you\'ve confirmed.');
+    }
+    elRosh.innerHTML = parts.join('<br>');
+  }
+
+  // ---- ticking ----
+  function loop(ts){
+    if(running){
+      if(lastTick === null) lastTick = ts;
+      var dt = (ts - lastTick)/1000;
+      lastTick = ts;
+      t += dt;
+    } else {
+      lastTick = null;
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---- controls ----
+  document.getElementById('startBtn').onclick = function(){ running = true; lastTick = null; };
+  document.getElementById('pauseBtn').onclick = function(){ running = false; };
+  document.getElementById('resetBtn').onclick = function(){ t = 0; roshDeath = null; render(); };
+  document.getElementById('plusBtn').onclick  = function(){ t += 15; render(); };
+  document.getElementById('minusBtn').onclick = function(){ t = Math.max(0, t-15); render(); };
+  document.getElementById('setBtn').onclick = function(){
+    var m = parseInt(document.getElementById('setMin').value,10) || 0;
+    var s = parseInt(document.getElementById('setSec').value,10) || 0;
+    t = m*60 + s;
+    render();
+  };
+  document.getElementById('roshBtn').onclick = function(){ roshDeath = Math.floor(t); render(); };
+  document.getElementById('roshResetBtn').onclick = function(){ roshDeath = null; render(); };
+
+  // keyboard nicety: space toggles run
+  document.addEventListener('keydown', function(e){
+    if(e.code === 'Space' && e.target.tagName !== 'INPUT'){
+      e.preventDefault();
+      running = !running; lastTick = null;
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

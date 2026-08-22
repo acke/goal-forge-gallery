@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Godnattsaga-maskin · The Goodnight Story Machine</title>
+<style>
+  :root{
+    --ink:#eaf0ff; --ink-dim:#a9b6d8; --gold:#ffd884; --rose:#ffb3c6;
+    --card:rgba(20,26,54,.72); --edge:rgba(255,255,255,.10);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 80% -10%, #2a2050 0%, transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, #14304a 0%, transparent 55%),
+      linear-gradient(160deg,#0a0c22 0%, #0e1330 45%, #0b1226 100%);
+    min-height:100vh; overflow-x:hidden;
+  }
+  /* stars */
+  #sky{position:fixed; inset:0; z-index:0; pointer-events:none}
+  .star{position:absolute; width:2px; height:2px; background:#fff; border-radius:50%;
+    opacity:.7; animation:tw var(--d,4s) ease-in-out infinite alternate}
+  @keyframes tw{from{opacity:.15; transform:scale(.7)} to{opacity:.95; transform:scale(1.25)}}
+  .moon{position:fixed; top:34px; right:44px; width:74px; height:74px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #fff7e0, #ffe6a1 55%, #f4c869 100%);
+    box-shadow:0 0 46px 10px rgba(255,220,140,.35); z-index:0}
+  .moon::after{content:""; position:absolute; top:-6px; right:-6px; width:66px;height:66px;
+    border-radius:50%; background:#0e1330; box-shadow:0 0 30px 6px rgba(14,19,48,.6)}
+
+  .wrap{position:relative; z-index:2; max-width:760px; margin:0 auto; padding:34px 20px 70px}
+  header{text-align:center; margin-bottom:20px}
+  h1{margin:.1em 0 .1em; font-size:2rem; letter-spacing:.3px}
+  .sv{color:var(--gold); font-size:1rem; letter-spacing:2px; text-transform:uppercase; opacity:.85}
+  .tag{color:var(--ink-dim); font-style:italic; margin-top:6px}
+
+  /* language toggle */
+  .langtoggle{display:inline-flex; gap:6px; margin-bottom:16px; padding:4px;
+    border:1px solid var(--edge); border-radius:999px; background:rgba(255,255,255,.04)}
+  .lang{cursor:pointer; user-select:none; font:inherit; font-size:.82rem; letter-spacing:.5px;
+    padding:6px 15px; border-radius:999px; border:none; background:transparent; color:var(--ink-dim); transition:.15s}
+  .lang.on{background:linear-gradient(180deg,#ffe6a1,#f4c869); color:#2a2050; font-weight:700}
+
+  .panel{background:var(--card); border:1px solid var(--edge); border-radius:20px;
+    padding:20px; backdrop-filter:blur(8px); box-shadow:0 20px 50px rgba(0,0,0,.35)}
+  .controls{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; justify-content:center; margin-bottom:18px}
+  .field{display:flex; flex-direction:column; gap:6px}
+  label{font-size:.72rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--ink-dim)}
+  input[type=text]{background:rgba(255,255,255,.06); border:1px solid var(--edge); color:var(--ink);
+    border-radius:12px; padding:10px 12px; font:inherit; font-size:1rem; width:230px}
+  input::placeholder{color:#6f7c9e}
+  .vibes{display:flex; gap:8px}
+  .vibe{cursor:pointer; user-select:none; padding:9px 14px; border-radius:999px; font-size:.9rem;
+    border:1px solid var(--edge); background:rgba(255,255,255,.04); color:var(--ink-dim); transition:.15s}
+  .vibe.on{background:linear-gradient(180deg,#ffe6a1,#f4c869); color:#2a2050; border-color:transparent; font-weight:600}
+
+  .btnrow{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:4px}
+  button.act{cursor:pointer; font:inherit; font-size:1.02rem; padding:13px 22px; border-radius:14px; border:none;
+    background:linear-gradient(180deg,#ffd884,#f6b64a); color:#241a3d; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 8px 22px rgba(246,182,74,.28); transition:transform .12s, box-shadow .12s}
+  button.act:hover{transform:translateY(-2px)}
+  button.ghost{background:rgba(255,255,255,.06); color:var(--ink); box-shadow:none; border:1px solid var(--edge)}
+  button:active{transform:translateY(1px)}
+
+  .story{margin-top:22px; font-size:1.22rem; line-height:1.75; min-height:120px}
+  .story p{margin:0 0 1em; opacity:0; transform:translateY(8px); animation:rise .7s ease forwards}
+  .story p:nth-child(1){animation-delay:.05s}
+  .story p:nth-child(2){animation-delay:.5s}
+  .story p:nth-child(3){animation-delay:.95s}
+  .story p:nth-child(4){animation-delay:1.4s}
+  .story p:nth-child(5){animation-delay:1.85s}
+  @keyframes rise{to{opacity:1; transform:none}}
+  .title-line{font-size:1.5rem; color:var(--gold); font-weight:700; margin-bottom:.5em !important;
+    animation:rise .7s ease forwards !important; opacity:0}
+  em.name{color:var(--rose); font-style:normal; font-weight:600}
+  .goodnight{margin-top:18px; padding-top:14px; border-top:1px dashed var(--edge);
+    color:var(--ink-dim); font-style:italic; text-align:center}
+  .goodnight b{color:var(--gold); font-style:normal}
+
+  .footer{text-align:center; margin-top:26px; color:#7583a8; font-size:.82rem; line-height:1.5}
+  .footer b{color:var(--gold)}
+  .signature{margin-top:8px; color:var(--rose)}
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div class="moon"></div>
+
+<div class="wrap">
+  <header>
+    <div class="langtoggle" id="langtoggle">
+      <button class="lang on" data-l="sv">Svenska</button>
+      <button class="lang" data-l="en">English</button>
+    </div>
+    <div class="sv">Godnattsaga-maskin</div>
+    <h1 id="h1">Godnattsaga-maskinen</h1>
+    <div class="tag" id="tag"></div>
+  </header>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="field">
+        <label id="lbl-names"></label>
+        <input id="names" type="text">
+      </div>
+      <div class="field">
+        <label id="lbl-flavour"></label>
+        <div class="vibes" id="vibes">
+          <span class="vibe on" data-v="cozy" data-emoji="🫖"></span>
+          <span class="vibe" data-v="silly" data-emoji="🐸"></span>
+          <span class="vibe" data-v="brave" data-emoji="🛡️"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btnrow">
+      <button class="act" id="spin"></button>
+      <button class="act ghost" id="more"></button>
+    </div>
+
+    <div class="story" id="story"></div>
+  </div>
+
+  <div class="footer">
+    <div id="footer-main"></div>
+    <div class="signature">God natt, Knut. 🌙</div>
+  </div>
+</div>
+
+<script>
+/* ---------- twinkly sky ---------- */
+(function(){
+  const sky=document.getElementById('sky'); let s='';
+  for(let i=0;i<90;i++){
+    const x=Math.random()*100, y=Math.random()*100, d=(2+Math.random()*5).toFixed(1);
+    s+=`<span class="star" style="left:${x}%;top:${y}%;--d:${d}s;animation-delay:${(Math.random()*4).toFixed(1)}s"></span>`;
+  }
+  sky.innerHTML=s;
+})();
+
+/* ---------- shared ---------- */
+// Both English and Swedish past-tense verbs are number-invariant, so one name or
+// three read cleanly with no re-conjugation. Companions carry an explicit short
+// name [full, short] so the "walked them home" line never has to guess.
+const DEFAULT_NAMES=["Astrid","Milo","Vega"];
+
+// [phrase, langKey] — same greetings, label rendered in the current UI language.
+const GOODNIGHTS=[
+  ["Sov gott","swedish"],
+  ["Sleep tight","english"],
+  ["Buenas noches","spanish"],
+  ["Slaap lekker","dutch"],
+  ["おやすみ (oyasumi)","japanese"]
+];
+
+/* ---------- content, per language ---------- */
+const CONTENT = {
+  en: {
+    ui:{
+      h1:"The Goodnight Story Machine",
+      tag:"One fresh little bedtime tale, spun on request. Malmö-made, always ends asleep.",
+      lblNames:"Tonight's heroes (comma-separated)",
+      placeholder:"e.g. Astrid, Milo, Vega",
+      lblFlavour:"Tonight's flavour",
+      vibes:{cozy:"Cozy", silly:"Silly", brave:"Brave"},
+      spin:"✨ Spin a story",
+      intro:"Type the little ones' names (or don't — the machine has spares), pick a flavour, and press <b>Spin a story</b>. Then hand the screen to a small human who will, without fail, demand <em>one more</em>.",
+      footer:"Built at 2 a.m. by <b>Natt</b> for the loudest 8 minutes of your evening — the negotiation before sleep.<br>All stories are generated right here in the browser. No internet, no accounts, no data leaves this file.",
+      more:{ base:"One more? 🌙", after1:"Okay, one more? 🌙", after2:"Truly the last one? 🌙", final:"The stars are getting sleepy too… 💤" },
+      powerdown:"(That's three. The Story Machine gently powers down and pretends to snore. Real bedtime now — you can wake it again tomorrow. It's on your side.)",
+      gnClose:(phrase,lang)=>`<b>${phrase}</b> — that's "goodnight" in ${lang}. 🌙`
+    },
+    langnames:{swedish:"Swedish", english:"English", spanish:"Spanish", dutch:"Dutch", japanese:"Japanese"},
+    P1:"Once, not far from here, in {place}, there lived {companion}.",
+    PLACES:[
+      "the harbour where the Turning Torso stands on tiptoe to see over the rooftops",
+      "the long dark sand of Ribersborg, where the sea was practising its quietest whisper",
+      "a sleepy tram that had decided, just for tonight, to run on stardust instead of rails",
+      "the old cobbled squares of Gamla staden, lit by lanterns the colour of warm honey",
+      "the little bridge over the canal, where the ducks were already tucked in and snoring",
+      "a corner café in Möllan that stays open one extra hour for travellers who are lost and cold"
+    ],
+    CO:{
+      cozy:[
+        ["a very round cat named Bulle who could purr in three languages","Bulle"],
+        ["a grandmother made entirely of good advice and cardamom","the grandmother"],
+        ["a kettle that hummed old lullabies when nobody was watching","the kettle"],
+        ["a small woolly moose who had lost a single sock and wanted only to sleep","the moose"]
+      ],
+      silly:[
+        ["a frog in a tiny yellow raincoat who insisted, loudly, that he was a duck","the frog"],
+        ["a herring named Sir Reginald who wore a monocle and gave terrible directions","Sir Reginald"],
+        ["a snowball that had rolled all the way from the North and now refused to melt out of pure stubbornness","the snowball"],
+        ["a pigeon who had opened a bank and was, frankly, doing extremely well","the pigeon"]
+      ],
+      brave:[
+        ["an old lighthouse keeper with a beard like sea-foam and a map of every safe way home","the lighthouse keeper"],
+        ["a knight the size of a thumb who guarded the last warm biscuit in the kingdom","the knight"],
+        ["a shy dragon named Sot who breathed not fire but small, gentle clouds of steam","Sot"],
+        ["a wolf who had sworn, on the moon itself, to walk lost children back to their doors","the wolf"]
+      ]
+    },
+    PROBLEMS:{
+      cozy:[
+        "The moon had misplaced its reflection somewhere in the harbour, and without it the whole city couldn't quite get sleepy.",
+        "Every blanket in Malmö had gone a little too flat, and someone had to find the softest cloud to plump them up again.",
+        "A single star had wandered down to buy a bun and now couldn't remember which patch of sky was home."
+      ],
+      silly:[
+        "All the socks in the city had eloped together and were throwing a party under the sea. Someone had to negotiate their return.",
+        "The ferry to Copenhagen had hiccups so enormous it kept bouncing over the waves like a skipping stone.",
+        "Every clock in town had agreed to run backwards for a laugh, and now bedtime kept arriving twice."
+      ],
+      brave:[
+        "A cold, grumbling fog had rolled in off the Øresund and swallowed all the streetlights one by one.",
+        "The last warm biscuit in the kingdom had been stolen by the wind and carried far out over the black water.",
+        "A door at the edge of the city had swung open onto Somewhere Else, and it needed closing before the draught woke the babies."
+      ]
+    },
+    HELPS:[
+      "So {names} pulled on the warmest coats and set off, holding hands so nobody could be lost.",
+      "So {names} filled a thermos with hot cocoa, packed exactly four biscuits, and marched out into the dark like tiny generals of kindness.",
+      "So {names} tiptoed past the sleeping house, borrowed a lantern, and followed the trail of moonlight step by careful step.",
+      "So {names} climbed onto the back of the stardust tram, waved at the ducks, and rolled off to fix it — because that is simply what {names} do."
+    ],
+    TURNS:[
+      "It was scary for a moment, in the way small brave things always are. But {names} took a deep breath, and the fear got bored and went home.",
+      "There was a lot of tricky counting and one wrong turn near the fish market, but {names} figured it out the way clever people do — together, and slowly, and with snacks.",
+      "The trouble grumbled and wobbled and nearly won. Then {names} did the one thing nobody expects: they were patient, and kind, and just a little bit clever.",
+      "It took three tries and a very silly song, but {names} never gave up, not even when a seagull offered unhelpful opinions."
+    ],
+    RESOLVE:[
+      "And it worked. The moon found its reflection, the fog rolled back out to sea, and the whole city let out one enormous, contented yawn.",
+      "And just like that, everything clicked into place. The socks came home, the clocks faced forward, and Malmö sighed with relief.",
+      "And bit by bit, the warm returned. Lanterns flickered on, blankets plumped up, and every window in the city glowed like a sleepy eye.",
+      "And with the very last push, the trouble untangled itself, thanked them politely, and promised to behave until at least next Tuesday."
+    ],
+    HOME:[
+      "{companion} walked {names} all the way home, right to the door where the light was left on.",
+      "The stardust tram carried {names} back, humming, and set them down softly on the doorstep with {companion} waving from the window.",
+      "Hand in hand with {companion}, {names} wandered home under a sky that was finally, properly sleepy."
+    ],
+    WINDDOWN:[
+      "Off came the coats. In went the toes, under the covers, warm as fresh bread.",
+      "The cocoa was finished, the biscuits were crumbs, and the pillows were exactly the right kind of cool on one side.",
+      "The house breathed slow. Somewhere a kettle sighed. The night pulled its softest blanket over the whole street."
+    ],
+    CLOSE:[
+      "{names} closed their eyes. The city closed its eyes. Even the moon, satisfied, dimmed its lamp.",
+      "And {names}, heroes of a small and perfect adventure, drifted off before the last star had finished its wish.",
+      "{names} were asleep before the sentence could even finish itsel—"
+    ],
+    TITLES:{
+      cozy:["The Night the Moon Forgot Its Reflection","The Case of the Too-Flat Blankets","The Star Who Came Down for a Bun"],
+      silly:["The Great Sock Elopement","The Ferry with the Enormous Hiccups","The Night the Clocks Ran Backwards"],
+      brave:["The Fog That Ate the Streetlights","The Biscuit Beyond the Black Water","The Door at the Edge of the City"]
+    }
+  },
+
+  sv: {
+    ui:{
+      h1:"Godnattsaga-maskinen",
+      tag:"En liten färsk godnattsaga, spunnen på beställning. Malmötillverkad, slutar alltid i sömn.",
+      lblNames:"Kvällens hjältar (kommaseparerade)",
+      placeholder:"t.ex. Astrid, Milo, Vega",
+      lblFlavour:"Kvällens sort",
+      vibes:{cozy:"Mysig", silly:"Fånig", brave:"Modig"},
+      spin:"✨ Spinn en saga",
+      intro:"Skriv de smås namn (eller låt bli — maskinen har egna i reserv), välj en sort och tryck på <b>Spinn en saga</b>. Räck sedan skärmen till en liten människa som, utan undantag, kommer att kräva <em>en till</em>.",
+      footer:"Byggd klockan 2 på natten av <b>Natt</b> för kvällens högljuddaste 8 minuter — förhandlingen före sömnen.<br>Alla sagor skapas direkt här i webbläsaren. Inget internet, inga konton, ingen data lämnar den här filen.",
+      more:{ base:"En till? 🌙", after1:"Okej, en till? 🌙", after2:"Verkligen den sista? 🌙", final:"Stjärnorna blir också sömniga… 💤" },
+      powerdown:"(Det blev tre. Sago-maskinen slår mjukt av sig själv och låtsas snarka. Riktig läggdags nu — du kan väcka den igen imorgon. Den är på din sida.)",
+      gnClose:(phrase,lang)=>`<b>${phrase}</b> — så säger man "god natt" på ${lang}. 🌙`
+    },
+    langnames:{swedish:"svenska", english:"engelska", spanish:"spanska", dutch:"nederländska", japanese:"japanska"},
+    P1:"En gång, inte långt härifrån, {place}, bodde {companion}.",
+    // Swedish places carry their own preposition so the opening line always fits.
+    PLACES:[
+      "vid hamnen där Turning Torso ställer sig på tå för att kika över hustaken",
+      "på den långa mörka sanden vid Ribersborg, där havet övade på sin tystaste viskning",
+      "i en sömnig spårvagn som hade bestämt sig för att, bara för i kväll, gå på stjärnstoft istället för räls",
+      "på de gamla kullerstenstorgen i Gamla staden, upplysta av lyktor i färgen av varm honung",
+      "vid den lilla bron över kanalen, där ankorna redan var nedbäddade och snarkade",
+      "på ett hörncafé i Möllan som håller öppet en extra timme för resenärer som är vilsna och frusna"
+    ],
+    CO:{
+      cozy:[
+        ["en väldigt rund katt som hette Bulle och kunde spinna på tre språk","Bulle"],
+        ["en mormor gjord helt och hållet av goda råd och kardemumma","mormodern"],
+        ["en tekittel som nynnade gamla vaggvisor när ingen tittade","tekitteln"],
+        ["en liten ullig älg som hade tappat en enda strumpa och bara ville sova","älgen"]
+      ],
+      silly:[
+        ["en groda i en liten gul regnrock som högljutt insisterade på att han var en anka","grodan"],
+        ["en sill som hette Sir Reginald, bar monokel och gav usla vägbeskrivningar","Sir Reginald"],
+        ["en snöboll som hade rullat hela vägen från Norrland och nu vägrade smälta av ren envishet","snöbollen"],
+        ["en duva som hade öppnat en bank och, ärligt talat, gick strålande","duvan"]
+      ],
+      brave:[
+        ["en gammal fyrvaktare med ett skägg som havsskum och en karta över varje trygg väg hem","fyrvaktaren"],
+        ["en riddare stor som en tumme som vaktade den sista varma kakan i kungariket","riddaren"],
+        ["en blyg drake som hette Sot och andades inte eld utan små, milda moln av ånga","Sot"],
+        ["en varg som hade svurit, vid själva månen, att följa vilsna barn hela vägen hem till dörren","vargen"]
+      ]
+    },
+    PROBLEMS:{
+      cozy:[
+        "Månen hade tappat bort sin spegelbild någonstans i hamnen, och utan den kunde hela staden inte riktigt somna.",
+        "Alla filtar i Malmö hade blivit lite för platta, och någon måste hitta det mjukaste molnet för att pösa upp dem igen.",
+        "En ensam stjärna hade vandrat ner för att köpa en bulle och kunde nu inte minnas vilken fläck av himlen som var hemma."
+      ],
+      silly:[
+        "Alla strumpor i staden hade rymt tillsammans och höll fest under havet. Någon måste förhandla om att få dem tillbaka.",
+        "Färjan till Köpenhamn hade hickan så våldsamt att den studsade över vågorna som en kastad platt sten.",
+        "Alla klockor i stan hade kommit överens om att gå baklänges på skoj, och nu kom läggdags två gånger."
+      ],
+      brave:[
+        "En kall, grymtande dimma hade rullat in från Öresund och slukat alla gatlyktor en efter en.",
+        "Den sista varma kakan i kungariket hade stulits av vinden och burits långt ut över det svarta vattnet.",
+        "En dörr i utkanten av staden hade slagit upp mot Någon Annanstans, och den måste stängas innan draget väckte de små."
+      ]
+    },
+    HELPS:[
+      "Så {names} drog på sig de varmaste jackorna och gav sig av, hand i hand så att ingen kunde komma bort.",
+      "Så {names} fyllde en termos med varm choklad, packade precis fyra kakor och marscherade ut i mörkret som små vänlighetens generaler.",
+      "Så {names} smög förbi det sovande huset, lånade en lykta och följde månskensspåret steg för försiktigt steg.",
+      "Så {names} klev upp på stjärnstoftsspårvagnen, vinkade åt ankorna och rullade iväg för att fixa det — för det är helt enkelt vad {names} gör."
+    ],
+    TURNS:[
+      "Det var läskigt ett ögonblick, på det sätt som små modiga saker alltid är. Men {names} tog ett djupt andetag, och rädslan blev uttråkad och gick hem.",
+      "Det var mycket krångligt räknande och en felsväng nära fisktorget, men {names} listade ut det som kloka personer gör — tillsammans, långsamt och med lite tilltugg.",
+      "Bekymret grymtade och vinglade och var nära att vinna. Då gjorde {names} det enda ingen väntar sig: de var tålmodiga, snälla och en aning listiga.",
+      "Det tog tre försök och en väldigt fånig sång, men {names} gav aldrig upp, inte ens när en mås kom med föga hjälpsamma åsikter."
+    ],
+    RESOLVE:[
+      "Och det fungerade. Månen hittade sin spegelbild, dimman rullade tillbaka ut till havs, och hela staden gäspade en enda enorm, nöjd gäspning.",
+      "Och helt plötsligt föll allt på plats. Strumporna kom hem, klockorna vände framåt, och Malmö suckade av lättnad.",
+      "Och bit för bit kom värmen tillbaka. Lyktorna tändes, filtarna pöste upp, och varje fönster i staden lyste som ett sömnigt öga.",
+      "Och med den allra sista knuffen redde bekymret upp sig självt, tackade dem artigt och lovade att sköta sig åtminstone till nästa tisdag."
+    ],
+    HOME:[
+      "{companion} följde {names} hela vägen hem, ända fram till dörren där lampan lämnats tänd.",
+      "Stjärnstoftsspårvagnen tog {names} tillbaka, nynnande, och satte ner dem mjukt på trappan medan {companion} vinkade från fönstret.",
+      "Hand i hand med {companion} vandrade {names} hem under en himmel som äntligen, på riktigt, var sömnig."
+    ],
+    WINDDOWN:[
+      "Av åkte jackorna. In åkte tårna, under täcket, varma som nybakat bröd.",
+      "Chokladen var urdrucken, kakorna var smulor, och kuddarna var precis lagom svala på ena sidan.",
+      "Huset andades långsamt. Någonstans suckade en tekittel. Natten drog sin mjukaste filt över hela gatan."
+    ],
+    CLOSE:[
+      "{names} slöt sina ögon. Staden slöt sina ögon. Till och med månen, nöjd, dämpade sin lampa.",
+      "Och {names}, hjältar i ett litet och fullkomligt äventyr, somnade in innan den sista stjärnan hann önska färdigt.",
+      "{names} sov redan innan meningen ens hann avsluta si—"
+    ],
+    TITLES:{
+      cozy:["Natten då månen glömde sin spegelbild","Fallet med de alltför platta filtarna","Stjärnan som kom ner för en bulle"],
+      silly:["Den stora strumprymningen","Färjan med den väldiga hickan","Natten då klockorna gick baklänges"],
+      brave:["Dimman som åt upp gatlyktorna","Kakan bortom det svarta vattnet","Dörren i utkanten av staden"]
+    }
+  }
+};
+
+/* ---------- machinery ---------- */
+let lang="sv";
+let vibe="cozy";
+let moreCount=0;
+let hasStory=false;
+
+const VIBE_ORDER=["cozy","silly","brave"];
+
+function C(){ return CONTENT[lang]; }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+function capFirst(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+function getNames(){
+  let raw=document.getElementById('names').value.trim();
+  let arr = raw ? raw.split(',').map(s=>s.trim()).filter(Boolean) : DEFAULT_NAMES.slice();
+  if(arr.length===0) arr=DEFAULT_NAMES.slice();
+  return arr;
+}
+function joinNames(arr){
+  const and = lang==="sv" ? " och " : " and ";
+  if(arr.length===1) return arr[0];
+  if(arr.length===2) return arr[0]+and+arr[1];
+  // Swedish: no comma before "och"; English: Oxford comma before "and".
+  const tail = lang==="sv" ? " och " : ", and ";
+  return arr.slice(0,-1).join(", ")+tail+arr[arr.length-1];
+}
+function fill(t,namesStr,companion){
+  return t.replaceAll("{names}",`<em class="name">${namesStr}</em>`)
+          .replaceAll("{companion}",companion==null?"":companion);
+}
+
+function tellStory(){
+  const c=C();
+  const arr=getNames();
+  const namesStr=joinNames(arr);
+  const comp=pick(c.CO[vibe]);            // [full, short]
+  const companionFull=comp[0], companionShort=comp[1];
+
+  const title=pick(c.TITLES[vibe]);
+  const p1=c.P1.replace("{place}",pick(c.PLACES)).replace("{companion}",companionFull);
+  const p2=`${pick(c.PROBLEMS[vibe])} ${fill(pick(c.HELPS),namesStr)}`;
+  const p3=`${fill(pick(c.TURNS),namesStr)} ${pick(c.RESOLVE)}`;
+  const p4=capFirst(`${fill(pick(c.HOME),namesStr,companionShort)} ${pick(c.WINDDOWN)}`);
+  const p5=`${fill(pick(c.CLOSE),namesStr)}`;
+
+  const gn=pick(GOODNIGHTS);
+  const langLabel=c.langnames[gn[1]];
+
+  let html=`<p class="title-line">${title}</p>`;
+  html+=`<p>${p1}</p>`;
+  html+=`<p>${p2}</p>`;
+  html+=`<p>${p3}</p>`;
+  html+=`<p>${p4}</p>`;
+  html+=`<p>${p5}</p>`;
+  html+=`<div class="goodnight">${c.ui.gnClose(gn[0],langLabel)}</div>`;
+
+  const box=document.getElementById('story');
+  box.innerHTML=html;
+  box.querySelectorAll('p').forEach(p=>{ p.style.animation='none'; void p.offsetWidth; p.style.animation=''; });
+  hasStory=true;
+}
+
+function resetMore(){
+  moreCount=0;
+  const btn=document.getElementById('more');
+  btn.textContent=C().ui.more.base;
+  btn.disabled=false; btn.style.opacity=""; btn.style.cursor="pointer";
+}
+
+function showIntro(){
+  document.getElementById('story').innerHTML=
+    `<p style="opacity:.6;animation:none">${C().ui.intro}</p>`;
+  hasStory=false;
+}
+
+/* ---------- apply a language to all chrome ---------- */
+function applyLang(){
+  const c=C(), u=c.ui;
+  document.documentElement.lang=lang;
+  document.getElementById('h1').textContent=u.h1;
+  document.getElementById('tag').textContent=u.tag;
+  document.getElementById('lbl-names').textContent=u.lblNames;
+  document.getElementById('names').placeholder=u.placeholder;
+  document.getElementById('lbl-flavour').textContent=u.lblFlavour;
+  document.getElementById('spin').textContent=u.spin;
+  document.getElementById('footer-main').innerHTML=u.footer;
+
+  document.querySelectorAll('.vibe').forEach(v=>{
+    const key=v.dataset.v;
+    v.textContent=`${v.dataset.emoji} ${u.vibes[key]}`;
+  });
+  document.querySelectorAll('.lang').forEach(b=>b.classList.toggle('on',b.dataset.l===lang));
+
+  resetMore();
+  // Switching language always resets the story area so nothing is half-translated.
+  showIntro();
+}
+
+/* ---------- events ---------- */
+document.getElementById('langtoggle').addEventListener('click',e=>{
+  const t=e.target.closest('.lang'); if(!t) return;
+  if(t.dataset.l===lang) return;
+  lang=t.dataset.l;
+  applyLang();
+});
+
+document.getElementById('vibes').addEventListener('click',e=>{
+  const t=e.target.closest('.vibe'); if(!t)return;
+  document.querySelectorAll('.vibe').forEach(v=>v.classList.remove('on'));
+  t.classList.add('on'); vibe=t.dataset.v;
+});
+
+document.getElementById('spin').addEventListener('click',()=>{ resetMore(); tellStory(); });
+
+/* The one surprise: the machine knows when to stop. */
+document.getElementById('more').addEventListener('click',()=>{
+  const u=C().ui;
+  moreCount++;
+  const btn=document.getElementById('more');
+  if(moreCount<3){
+    tellStory();
+    btn.textContent = moreCount===1 ? u.more.after1 : u.more.after2;
+  } else if(moreCount===3){
+    tellStory();
+    btn.textContent = u.more.final;
+    btn.disabled=true; btn.style.opacity=".55"; btn.style.cursor="default";
+    const box=document.getElementById('story');
+    const note=document.createElement('div');
+    note.className='goodnight';
+    note.style.marginTop='10px';
+    note.innerHTML=`<i>${u.powerdown}</i>`;
+    box.appendChild(note);
+  }
+});
+
+/* ---------- boot (Swedish by default) ---------- */
+applyLang();
+</script>
+</body>
+</html>

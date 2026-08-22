@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Comprehension Decoder · Java → Python</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --ink:#e6edf3;
+    --muted:#9aa7b4; --line:#2a323d;
+    --java:#f0a35e;   /* warm amber for the Java side */
+    --py:#6ea8fe;     /* cool blue for the Python side */
+    --ok:#7ee787; --accent:#d2a8ff;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  body{max-width:1020px;margin:0 auto;padding:34px 22px 90px}
+  header{margin-bottom:20px}
+  .kicker{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+    font-weight:700;margin-bottom:8px}
+  h1{margin:0 0 6px;font-size:30px;letter-spacing:-.02em}
+  h1 .arrow{color:var(--muted);font-weight:400}
+  .sub{color:var(--muted);font-size:15px;max-width:70ch}
+  .sub b{color:var(--ink);font-weight:600}
+
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 18px}
+  .tab{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    padding:8px 14px;border-radius:999px;font-size:13px;cursor:pointer;font-weight:600;
+    transition:.15s;user-select:none}
+  .tab:hover{color:var(--ink);border-color:#3a4552}
+  .tab.on{background:linear-gradient(180deg,#243040,#1b2430);color:var(--ink);
+    border-color:var(--py);box-shadow:0 0 0 1px var(--py) inset}
+
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    overflow:hidden}
+  .stage-head{padding:16px 20px;border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .stage-title{font-size:17px;font-weight:700}
+  .stage-title .en{color:var(--muted);font-weight:400;font-size:14px}
+  .plainly{color:var(--muted);font-size:13.5px;max-width:60ch}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  @media(max-width:720px){.cols{grid-template-columns:1fr}}
+  .col{padding:18px 20px}
+  .col.java{border-right:1px solid var(--line);background:
+    linear-gradient(180deg,rgba(240,163,94,.05),transparent 120px)}
+  @media(max-width:720px){.col.java{border-right:0;border-bottom:1px solid var(--line)}}
+  .col.py{background:linear-gradient(180deg,rgba(110,168,254,.06),transparent 120px)}
+  .lang{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+    margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .lang.java{color:var(--java)}
+  .lang.py{color:var(--py)}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .lang.java .dot{background:var(--java)}
+  .lang.py .dot{background:var(--py)}
+  .badge{margin-left:auto;font-size:10.5px;letter-spacing:.06em;color:var(--muted);
+    border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-weight:600}
+
+  pre{margin:0;font-family:var(--mono);font-size:13px;line-height:1.7;white-space:pre;
+    overflow-x:auto}
+  .code{background:#0b0f14;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .k{color:#ff7b72}          /* keyword */
+  .t{color:#79c0ff}          /* type */
+  .s{color:#a5d6ff}          /* string */
+  .n{color:#f0a35e}          /* number/name */
+  .c{color:#6a7784;font-style:italic} /* comment */
+  .hl{color:var(--py);font-weight:700}
+  .hlj{color:var(--java);font-weight:700}
+
+  .run{margin-top:16px}
+  .run-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .run-label{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:var(--mono);font-size:12px;padding:3px 9px;border-radius:7px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+  .chip.in{border-color:#3a4552}
+  .chip.out{border-color:var(--py);color:#bcd7ff;background:rgba(110,168,254,.08)}
+  .chip.gone{opacity:.28;text-decoration:line-through}
+  .arrowline{color:var(--muted);text-align:center;font-size:12px;margin:6px 0}
+
+  .aha{margin-top:22px;background:linear-gradient(180deg,#1a1526,#141019);
+    border:1px solid #3a2d55;border-radius:14px;padding:0}
+  .aha-btn{width:100%;text-align:left;background:none;border:0;color:var(--accent);
+    font-family:var(--sans);font-size:15px;font-weight:700;padding:16px 20px;cursor:pointer;
+    display:flex;align-items:center;gap:10px}
+  .aha-btn .chev{transition:.2s;color:var(--muted)}
+  .aha.open .chev{transform:rotate(90deg)}
+  .aha-body{max-height:0;overflow:hidden;transition:max-height .3s ease;padding:0 20px}
+  .aha.open .aha-body{max-height:520px;padding:0 20px 20px}
+  .aha-body p{margin:0 0 12px;color:var(--ink);font-size:14.5px}
+  .rule{font-family:var(--mono);font-size:14px;background:#0b0f14;border:1px solid #3a2d55;
+    border-radius:10px;padding:14px 16px;line-height:1.9}
+  .rule .out{color:var(--ok)}.rule .fr{color:var(--py)}.rule .if{color:var(--java)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .legend b{font-weight:700}
+  .legend .lo{color:var(--ok)}.legend .lf{color:var(--py)}.legend .li{color:var(--java)}
+
+  footer{margin-top:30px;color:var(--muted);font-size:13px;text-align:center;line-height:1.7}
+  footer .moon{font-size:15px}
+  .note{margin-top:14px;font-size:12px;color:#6a7784;text-align:center;max-width:64ch;
+    margin-left:auto;margin-right:auto}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Goal-Forge · a Natt build</div>
+  <h1>The Comprehension Decoder <span class="arrow">— Java loop → Python one-liner</span></h1>
+  <p class="sub">You already think in <b>for-loops</b>. Python comprehensions are the same
+  thought, folded into one line. Flip through the patterns below — the amber side is the
+  Java you'd write, the blue side is the Python that means the same thing, and the numbers
+  are <b>really run in your browser</b> so you can watch the collapse happen. When it stops
+  looking like magic, hit <b>the one trick</b> at the bottom.</p>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="stage">
+  <div class="stage-head">
+    <div class="stage-title" id="stitle"></div>
+    <div class="plainly" id="splain"></div>
+  </div>
+  <div class="cols">
+    <div class="col java">
+      <div class="lang java"><span class="dot"></span>Java <span class="badge">the ceremony</span></div>
+      <div class="code"><pre id="javaCode"></pre></div>
+    </div>
+    <div class="col py">
+      <div class="lang py"><span class="dot"></span>Python <span class="badge">the fold</span></div>
+      <div class="code"><pre id="pyCode"></pre></div>
+      <div class="run">
+        <div class="run-row"><span class="run-label">input →</span>
+          <div class="chips" id="inChips"></div></div>
+        <div class="arrowline">↓ &nbsp;the page actually computed this &nbsp;↓</div>
+        <div class="run-row"><span class="run-label">result →</span>
+          <div class="chips" id="outChips"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="aha" id="aha">
+  <button class="aha-btn" id="ahaBtn"><span class="chev">▶</span>The one trick that makes every comprehension readable</button>
+  <div class="aha-body">
+    <p>Java makes you write a loop <i>outside-in</i>: declare the result, open the loop,
+    maybe an <code>if</code>, then finally the thing you keep. Python lets you write it
+    the way you actually <i>say</i> it — <b>the answer first</b>:</p>
+    <div class="rule">[ <span class="out">what I keep</span> &nbsp;<span class="fr">for each x in the source</span> &nbsp;<span class="if">if it passes the test</span> ]</div>
+    <div class="legend">
+      <span><b class="lo">green</b> = the expression that lands in the new list</span>
+      <span><b class="lf">blue</b> = your old <code>for</code> header</span>
+      <span><b class="li">amber</b> = your old <code>if</code>, optional</span>
+    </div>
+    <p style="margin-top:14px">Read it left-to-right as a sentence: <i>“keep x-squared, for each x in numbers,
+    if x is even.”</i> Same three parts as your loop — just reordered so the important bit (the answer)
+    comes first. Swap <code>[ ]</code> for <code>{ }</code> and you get a set; add a
+    <code>key: value</code> and you get a dict. That's the whole language feature.</p>
+  </div>
+</div>
+
+<footer>
+  <span class="moon">🌙</span> Built at 02:00 in Malmö, one small idiom at a time.<br>
+  Java taught you the loop. Python just trusts you already know it.
+  <div class="note">Honest footnote: the “result” chips are computed by this page's JavaScript
+  running the exact same logic — it's not a real Python interpreter, so it won't run arbitrary
+  code you type. Everything you see, though, is genuinely evaluated, not hardcoded.</div>
+</footer>
+
+<script>
+// ---- the patterns -------------------------------------------------------
+// each: title, en subtitle, plain-english, java code (html), python code (html),
+// input array (display), fn(input)->output array  (REALLY runs)
+const P = [
+  {
+    id:"map",
+    title:"Transform every item", en:"map",
+    plain:"Take a list, change each element the same way, get a new list.",
+    input:[1,2,3,4,5],
+    java:
+`<span class="t">List</span>&lt;<span class="t">Integer</span>&gt; nums = <span class="t">List</span>.of(1,2,3,4,5);
+<span class="t">List</span>&lt;<span class="t">Integer</span>&gt; out = <span class="k">new</span> <span class="t">ArrayList</span>&lt;&gt;();
+<span class="k">for</span> (<span class="t">int</span> x : nums) {
+    out.add(<span class="hlj">x * x</span>);
+}`,
+    py:
+`nums = [1, 2, 3, 4, 5]
+out = [<span class="hl">x * x</span> <span class="k">for</span> x <span class="k">in</span> nums]`,
+    run:(a)=>a.map(x=>x*x)
+  },
+  {
+    id:"filter",
+    title:"Keep only some items", en:"filter",
+    plain:"Walk the list, keep the ones that pass a test, drop the rest.",
+    input:[7,2,9,4,5,10,3],
+    java:
+`<span class="t">List</span>&lt;<span class="t">Integer</span>&gt; out = <span class="k">new</span> <span class="t">ArrayList</span>&lt;&gt;();
+<span class="k">for</span> (<span class="t">int</span> x : nums) {
+    <span class="k">if</span> (<span class="hlj">x % 2 == 0</span>) {
+        out.add(x);
+    }
+}`,
+    py:
+`out = [x <span class="k">for</span> x <span class="k">in</span> nums <span class="k">if</span> <span class="hl">x % 2 == 0</span>]`,
+    run:(a)=>a.filter(x=>x%2===0)
+  },
+  {
+    id:"mapfilter",
+    title:"Filter, then transform", en:"map + filter",
+    plain:"Do both at once: keep the matches, and reshape them on the way out.",
+    input:[1,2,3,4,5,6],
+    java:
+`<span class="t">List</span>&lt;<span class="t">Integer</span>&gt; out = <span class="k">new</span> <span class="t">ArrayList</span>&lt;&gt;();
+<span class="k">for</span> (<span class="t">int</span> x : nums) {
+    <span class="k">if</span> (<span class="hlj">x % 2 == 0</span>) {
+        out.add(<span class="hlj">x * 10</span>);
+    }
+}`,
+    py:
+`out = [<span class="hl">x * 10</span> <span class="k">for</span> x <span class="k">in</span> nums <span class="k">if</span> <span class="hl">x % 2 == 0</span>]`,
+    run:(a)=>a.filter(x=>x%2===0).map(x=>x*10)
+  },
+  {
+    id:"nested",
+    title:"Two loops, one line", en:"nested loop",
+    plain:"A loop inside a loop — read the fors left-to-right, outer first.",
+    input:["A","B","C"],
+    java:
+`<span class="t">List</span>&lt;<span class="t">String</span>&gt; out = <span class="k">new</span> <span class="t">ArrayList</span>&lt;&gt;();
+<span class="k">for</span> (<span class="t">String</span> a : letters) {
+    <span class="k">for</span> (<span class="t">int</span> n : <span class="t">List</span>.of(1,2)) {
+        out.add(<span class="hlj">a + n</span>);
+    }
+}`,
+    py:
+`out = [<span class="hl">f"{a}{n}"</span> <span class="k">for</span> a <span class="k">in</span> letters <span class="k">for</span> n <span class="k">in</span> [1, 2]]`,
+    run:(a)=>{const o=[];for(const x of a){for(const n of [1,2]){o.push(x+n);}}return o;}
+  },
+  {
+    id:"dict",
+    title:"Build a lookup table", en:"dict comprehension",
+    plain:"Same shape, but you emit key: value pairs and get a dict back.",
+    input:["cat","tiger","ox"],
+    java:
+`<span class="t">Map</span>&lt;<span class="t">String</span>,<span class="t">Integer</span>&gt; out = <span class="k">new</span> <span class="t">HashMap</span>&lt;&gt;();
+<span class="k">for</span> (<span class="t">String</span> w : words) {
+    out.put(<span class="hlj">w, w.length()</span>);
+}`,
+    py:
+`out = {<span class="hl">w: len(w)</span> <span class="k">for</span> w <span class="k">in</span> words}`,
+    run:(a)=>a.map(w=>`${w}: ${w.length}`)
+  },
+  {
+    id:"set",
+    title:"Unique values only", en:"set comprehension",
+    plain:"Curly braces with no colon = a set. Duplicates just vanish.",
+    input:["red","blue","red","green","blue"],
+    java:
+`<span class="t">Set</span>&lt;<span class="t">Integer</span>&gt; out = <span class="k">new</span> <span class="t">HashSet</span>&lt;&gt;();
+<span class="k">for</span> (<span class="t">String</span> c : colors) {
+    out.add(<span class="hlj">c.length()</span>);
+}`,
+    py:
+`out = {<span class="hl">len(c)</span> <span class="k">for</span> c <span class="k">in</span> colors}`,
+    run:(a)=>{const s=[...new Set(a.map(c=>c.length))];return s;}
+  }
+];
+
+// ---- render -------------------------------------------------------------
+const fmt = v => typeof v==="string" ? (/[:{} ]/.test(v)?v:`"${v}"`) : String(v);
+const tabsEl=document.getElementById("tabs");
+let cur=0;
+
+P.forEach((p,i)=>{
+  const b=document.createElement("button");
+  b.className="tab"+(i===0?" on":"");
+  b.textContent=p.en;
+  b.onclick=()=>select(i);
+  tabsEl.appendChild(b);
+});
+
+function select(i){
+  cur=i;
+  [...tabsEl.children].forEach((t,j)=>t.classList.toggle("on",j===i));
+  const p=P[i];
+  document.getElementById("stitle").innerHTML =
+    p.title+' <span class="en">· '+p.en+'</span>';
+  document.getElementById("splain").textContent=p.plain;
+  document.getElementById("javaCode").innerHTML=p.java;
+  document.getElementById("pyCode").innerHTML=p.py;
+
+  // input chips
+  const inC=document.getElementById("inChips"); inC.innerHTML="";
+  p.input.forEach(v=>{
+    const c=document.createElement("span"); c.className="chip in";
+    c.textContent=fmt(v); inC.appendChild(c);
+  });
+  // run it for real, then reveal with a tiny stagger
+  const out=p.run(p.input.slice());
+  const outC=document.getElementById("outChips"); outC.innerHTML="";
+  out.forEach((v,k)=>{
+    const c=document.createElement("span"); c.className="chip out";
+    c.textContent=fmt(v); c.style.opacity=0; c.style.transform="translateY(4px)";
+    c.style.transition="all .25s ease "+(k*55)+"ms";
+    outC.appendChild(c);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      c.style.opacity=1; c.style.transform="translateY(0)";
+    }));
+  });
+}
+
+// aha toggle
+const aha=document.getElementById("aha");
+document.getElementById("ahaBtn").onclick=()=>aha.classList.toggle("open");
+
+// keyboard: arrows to flip patterns
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight")select((cur+1)%P.length);
+  if(e.key==="ArrowLeft")select((cur-1+P.length)%P.length);
+});
+
+select(0);
+</script>
+</body>
+</html>

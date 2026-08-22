@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Drakens Ordskatt 🐉</title>
+<style>
+  :root{
+    --gold:#f4c430; --gold-deep:#d99b1c; --ink:#f3ede0;
+    --night:#0e2a2e; --night2:#123a40; --card:#17454b;
+    --t1:#e8443a; --t2:#2fb85a; --t3:#3a86e0; --t4:#a05be0; --t0:#9fb0ad;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 700px at 50% -10%, #1b515a 0%, var(--night2) 45%, var(--night) 100%);
+    color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:18px 14px 34px;
+  }
+  .wrap{width:100%; max-width:520px;}
+  header{text-align:center; margin-bottom:10px;}
+  h1{
+    font-size:1.55rem; margin:0; letter-spacing:.5px;
+    background:linear-gradient(180deg,#ffe9a8,var(--gold) 55%,var(--gold-deep));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 1px 0 rgba(0,0,0,.15);
+  }
+  .sub{font-size:.82rem; color:#bcd3cf; margin-top:3px;}
+  .dragon-row{display:flex; align-items:center; gap:10px; margin:14px 2px 8px;}
+  .dragon{font-size:2.6rem; line-height:1; filter:drop-shadow(0 3px 4px rgba(0,0,0,.35)); transition:transform .25s;}
+  .dragon.pop{transform:scale(1.18) rotate(-6deg);}
+  .bubble{
+    position:relative; background:#eef7f4; color:#123; border-radius:14px;
+    padding:9px 12px; font-size:.86rem; flex:1; box-shadow:0 3px 10px rgba(0,0,0,.25); min-height:20px;
+  }
+  .bubble::before{
+    content:""; position:absolute; left:-8px; top:16px; border:8px solid transparent;
+    border-right-color:#eef7f4; border-left:0;
+  }
+  .card{
+    background:linear-gradient(180deg,var(--card),#0f363b);
+    border:1px solid rgba(244,196,48,.35); border-radius:22px; padding:20px 18px 18px;
+    box-shadow:0 12px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.05);
+    text-align:center;
+  }
+  .daybadge{
+    display:inline-block; font-size:.68rem; letter-spacing:1.5px; text-transform:uppercase;
+    color:#0e2a2e; background:var(--gold); border-radius:20px; padding:4px 12px; font-weight:700;
+    margin-bottom:6px;
+  }
+  .emoji{font-size:5.4rem; line-height:1; margin:6px 0 2px; user-select:none;}
+  .enword{font-size:1.1rem; color:#cfe6e1; letter-spacing:.5px; margin-bottom:14px; font-weight:600;}
+  .tiles{display:flex; flex-direction:column; gap:10px;}
+  .tile{
+    position:relative; border-radius:14px; overflow:hidden; cursor:pointer;
+    background:#0d2f34; border:1px solid rgba(255,255,255,.08); min-height:64px;
+    display:flex; align-items:center; text-align:left;
+  }
+  .flag{font-size:1.6rem; width:52px; text-align:center; flex:0 0 52px;}
+  .content{flex:1; padding:8px 12px 8px 0;}
+  .lang{font-size:.66rem; text-transform:uppercase; letter-spacing:1.2px; color:#8fb1ab;}
+  .word{font-size:1.55rem; font-weight:700; margin-top:1px; line-height:1.15;}
+  .word.zh{font-size:1.9rem;}
+  .py{font-size:1.05rem; margin-top:1px; font-weight:700;}
+  .cover{
+    position:absolute; inset:0; background:linear-gradient(135deg,#1e5158,#14403f);
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    font-size:.9rem; color:var(--gold); font-weight:600; transition:opacity .25s, transform .25s;
+  }
+  .tile.open .cover{opacity:0; pointer-events:none; transform:translateY(-6px);}
+  .controls{display:flex; gap:10px; margin-top:16px;}
+  button{
+    font-family:inherit; font-weight:700; font-size:.95rem; border:0; border-radius:14px;
+    padding:14px 10px; cursor:pointer; flex:1; transition:transform .08s, filter .15s;
+  }
+  button:active{transform:translateY(1px) scale(.99);}
+  .primary{background:linear-gradient(180deg,#ffe08a,var(--gold) 60%,var(--gold-deep)); color:#3a2a00;}
+  .ghost{background:rgba(255,255,255,.08); color:var(--ink); border:1px solid rgba(255,255,255,.14);}
+  .challenge{
+    margin-top:16px; background:rgba(244,196,48,.10); border:1px dashed rgba(244,196,48,.5);
+    border-radius:14px; padding:12px 14px; text-align:left; font-size:.92rem; line-height:1.4;
+  }
+  .challenge b{color:var(--gold); display:block; font-size:.66rem; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px;}
+  .tally{text-align:center; margin-top:16px; font-size:.82rem; color:#a9c4bf;}
+  .legend{display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px; font-size:.62rem; color:#9fb0ad;}
+  .legend span{display:inline-flex; align-items:center; gap:4px;}
+  .dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  footer{text-align:center; margin-top:20px; font-size:.72rem; color:#7f9a95; line-height:1.5;}
+  footer .heart{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Drakens Ordskatt</h1>
+    <div class="sub">Ett ord om dagen på tre språk · svenska · English · 中文</div>
+  </header>
+
+  <div class="dragon-row">
+    <div class="dragon" id="dragon">🐉</div>
+    <div class="bubble" id="bubble">Vilken skatt ska vi öppna idag?</div>
+  </div>
+
+  <div class="card">
+    <div class="daybadge" id="badge">Dagens ord</div>
+    <div class="emoji" id="emoji">🐱</div>
+    <div class="enword" id="enword">cat</div>
+
+    <div class="tiles">
+      <div class="tile" data-lang="sv">
+        <div class="flag">🇸🇪</div>
+        <div class="content">
+          <div class="lang">Svenska</div>
+          <div class="word" id="sv-word">katt</div>
+        </div>
+        <div class="cover">👆 Tryck för svenska</div>
+      </div>
+
+      <div class="tile" data-lang="en">
+        <div class="flag">🇬🇧</div>
+        <div class="content">
+          <div class="lang">English</div>
+          <div class="word" id="en-word">cat</div>
+        </div>
+        <div class="cover">👆 Tap for English</div>
+      </div>
+
+      <div class="tile" data-lang="zh">
+        <div class="flag">🇨🇳</div>
+        <div class="content">
+          <div class="lang">中文 · pinyin</div>
+          <div class="word zh" id="zh-word">猫</div>
+          <div class="py" id="zh-py">māo</div>
+        </div>
+        <div class="cover">👆 按一下 · tryck för kinesiska</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="dot" style="background:var(--t1)"></span>1:a ton</span>
+      <span><span class="dot" style="background:var(--t2)"></span>2:a ton</span>
+      <span><span class="dot" style="background:var(--t3)"></span>3:e ton</span>
+      <span><span class="dot" style="background:var(--t4)"></span>4:e ton</span>
+      <span><span class="dot" style="background:var(--t0)"></span> neutral</span>
+    </div>
+
+    <div class="controls">
+      <button class="ghost" id="revealBtn">Visa alla</button>
+      <button class="primary" id="nextBtn">Ny skatt ✨</button>
+    </div>
+
+    <div class="challenge">
+      <b>Familjeutmaning</b>
+      <span id="challenge">Härma en katt tills någon skrattar. 喵!</span>
+    </div>
+  </div>
+
+  <div class="tally" id="tally">Ni har öppnat 0 skatter idag.</div>
+
+  <footer>
+    Byggd i natt av Natt 🌙 — för hela familjen Han–Funkel.<br>
+    Tonfärgerna följer mandarinens fyra toner. Säg orden <span class="heart">högt</span> tillsammans.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// t = tonnummer (1-4, 0 = neutral). Pinyin färgläggs stavelse för stavelse.
+const DECK = [
+  {en:"cat",       sv:"katt",     zh:"猫",     py:[["māo",1]], em:"🐱", ch:"Härma en katt tills någon skrattar. 喵!"},
+  {en:"dog",       sv:"hund",     zh:"狗",     py:[["gǒu",3]], em:"🐶", ch:"Vem i familjen är mest som en hund på morgonen?"},
+  {en:"bird",      sv:"fågel",    zh:"鸟",     py:[["niǎo",3]], em:"🐦", ch:"Vissla som en fågel — vem kan längst?"},
+  {en:"fish",      sv:"fisk",     zh:"鱼",     py:[["yú",2]], em:"🐟", ch:"Gör en fisk-min och sug in kinderna."},
+  {en:"horse",     sv:"häst",     zh:"马",     py:[["mǎ",3]], em:"🐴", ch:"Galoppera ett varv runt köksbordet."},
+  {en:"rabbit",    sv:"kanin",    zh:"兔子",   py:[["tù",4],["zi",0]], em:"🐰", ch:"Hoppa som en kanin till kylskåpet och tillbaka."},
+  {en:"bear",      sv:"björn",    zh:"熊",     py:[["xióng",2]], em:"🐻", ch:"Ge någon en riktig björnkram."},
+  {en:"tiger",     sv:"tiger",    zh:"老虎",   py:[["lǎo",3],["hǔ",3]], em:"🐯", ch:"Vem har det största tiger-rytet?"},
+  {en:"elephant",  sv:"elefant",  zh:"大象",   py:[["dà",4],["xiàng",4]], em:"🐘", ch:"Gör en snabel med armen och tuta."},
+  {en:"panda",     sv:"panda",    zh:"熊猫",   py:[["xióng",2],["māo",1]], em:"🐼", ch:"Ät något grönt och krispigt som en panda."},
+  {en:"dragon",    sv:"drake",    zh:"龙",     py:[["lóng",2]], em:"🐉", ch:"Rita en drake ihop — alla ritar varsin del."},
+  {en:"apple",     sv:"äpple",    zh:"苹果",   py:[["píng",2],["guǒ",3]], em:"🍎", ch:"Dela ett äpple i lika många bitar som ni är."},
+  {en:"banana",    sv:"banan",    zh:"香蕉",   py:[["xiāng",1],["jiāo",1]], em:"🍌", ch:"Ring någon i en banan-telefon."},
+  {en:"rice",      sv:"ris",      zh:"米饭",   py:[["mǐ",3],["fàn",4]], em:"🍚", ch:"Räkna tio riskorn utan att tappa bort er."},
+  {en:"water",     sv:"vatten",   zh:"水",     py:[["shuǐ",3]], em:"💧", ch:"Skåla i vatten och säg 水!"},
+  {en:"milk",      sv:"mjölk",    zh:"牛奶",   py:[["niú",2],["nǎi",3]], em:"🥛", ch:"Vem gör den finaste mustaschen av mjölk?"},
+  {en:"bread",     sv:"bröd",     zh:"面包",   py:[["miàn",4],["bāo",1]], em:"🍞", ch:"Rosta en macka och dela den."},
+  {en:"egg",       sv:"ägg",      zh:"鸡蛋",   py:[["jī",1],["dàn",4]], em:"🥚", ch:"Gå som om ni bär ett ägg på en sked."},
+  {en:"noodles",   sv:"nudlar",   zh:"面条",   py:[["miàn",4],["tiáo",2]], em:"🍜", ch:"Slurpa en nudel så högt ni vågar."},
+  {en:"ice cream", sv:"glass",    zh:"冰淇淋", py:[["bīng",1],["qí",2],["lín",2]], em:"🍦", ch:"Bestäm familjens drömglass-smak tillsammans."},
+  {en:"mum",       sv:"mamma",    zh:"妈妈",   py:[["mā",1],["ma",0]], em:"👩", ch:"Säg tre saker ni gillar med mamma."},
+  {en:"dad",       sv:"pappa",    zh:"爸爸",   py:[["bà",4],["ba",0]], em:"👨", ch:"Säg tre saker ni gillar med pappa."},
+  {en:"baby",      sv:"bebis",    zh:"宝宝",   py:[["bǎo",3],["bao",0]], em:"👶", ch:"Vem var sötast som bebis? Titta på ett foto."},
+  {en:"home",      sv:"hem",      zh:"家",     py:[["jiā",1]], em:"🏠", ch:"Gör en familjekram — allihop på en gång."},
+  {en:"sun",       sv:"sol",      zh:"太阳",   py:[["tài",4],["yáng",2]], em:"☀️", ch:"Sträck er mot solen och gäspa stort."},
+  {en:"moon",      sv:"måne",     zh:"月亮",   py:[["yuè",4],["liang",0]], em:"🌙", ch:"Titta ut och leta efter månen ikväll."},
+  {en:"star",      sv:"stjärna",  zh:"星星",   py:[["xīng",1],["xing",0]], em:"⭐", ch:"Önska något på en stjärna innan läggdags."},
+  {en:"rain",      sv:"regn",     zh:"雨",     py:[["yǔ",3]], em:"🌧️", ch:"Trumma regn på bordet med fingrarna."},
+  {en:"snow",      sv:"snö",      zh:"雪",     py:[["xuě",3]], em:"❄️", ch:"Berätta om ert bästa snö-minne."},
+  {en:"flower",    sv:"blomma",   zh:"花",     py:[["huā",1]], em:"🌸", ch:"Rita en blomma till någon ni tycker om."},
+  {en:"tree",      sv:"träd",     zh:"树",     py:[["shù",4]], em:"🌳", ch:"Stå still som ett träd i tio sekunder."},
+  {en:"happy",     sv:"glad",     zh:"高兴",   py:[["gāo",1],["xìng",4]], em:"😊", ch:"Visa er gladaste min — alla samtidigt."},
+  {en:"love",      sv:"kärlek",   zh:"爱",     py:[["ài",4]], em:"❤️", ch:"Säg 'jag älskar dig' på alla tre språken."},
+  {en:"hug",       sv:"kram",     zh:"抱抱",   py:[["bào",4],["bào",4]], em:"🤗", ch:"Kramas i exakt fem sekunder. Räkna högt."},
+  {en:"red",       sv:"röd",      zh:"红色",   py:[["hóng",2],["sè",4]], em:"🔴", ch:"Hitta tre röda saker i köket."},
+  {en:"blue",      sv:"blå",      zh:"蓝色",   py:[["lán",2],["sè",4]], em:"🔵", ch:"Hitta något blått och håll upp det."},
+  {en:"round",     sv:"rund",     zh:"圆",     py:[["yuán",2]], em:"⚪", ch:"Hitta något runt och rulla det försiktigt."},
+  {en:"thank you", sv:"tack",     zh:"谢谢",   py:[["xiè",4],["xie",0]], em:"🙏", ch:"Tacka någon för något de gjort idag."},
+  {en:"hello",     sv:"hej",      zh:"你好",   py:[["nǐ",3],["hǎo",3]], em:"👋", ch:"Vinka och säg hej på alla tre språk."},
+  {en:"goodnight", sv:"godnatt",  zh:"晚安",   py:[["wǎn",3],["ān",1]], em:"🌛", ch:"Öva godnatt: godnatt · goodnight · 晚安."},
+  {en:"car",       sv:"bil",      zh:"汽车",   py:[["qì",4],["chē",1]], em:"🚗", ch:"Härma ett billjud — vem är tystast som en elbil?"}
+];
+
+const TONECLASS = {1:"--t1",2:"--t2",3:"--t3",4:"--t4",0:"--t0"};
+function renderPinyin(py){
+  return py.map(([syl,tone])=>{
+    const c = getComputedStyle(document.documentElement).getPropertyValue(TONECLASS[tone]).trim();
+    return '<span style="color:'+c+'">'+syl+'</span>';
+  }).join('\u200a');
+}
+
+const BUBBLES_NEW = [
+  "En glänsande ny skatt! ✨",
+  "Tre språk, en familj. 🐉",
+  "Säg det högt — orden gillar att höras.",
+  "Åh, den här är fin. Gissa bilden först!",
+  "Vem kommer ihåg den till imorgon?",
+  "Kan ni säga den med rätt ton?",
+  "Bra val. Draken gillar den här."
+];
+const BUBBLE_START = "Vilken skatt ska vi öppna idag?";
+
+// --- state ---
+let current = -1;
+const $ = id => document.getElementById(id);
+
+function dayIndex(){
+  // Antal dagar sedan epoch i lokal tid -> stabilt "dagens ord".
+  const now = new Date();
+  const local = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.floor(local.getTime() / 86400000);
+}
+function todayKey(){
+  const n = new Date();
+  return n.getFullYear()+'-'+(n.getMonth()+1)+'-'+n.getDate();
+}
+function getTally(){
+  try{
+    const raw = JSON.parse(localStorage.getItem('ordskatt')||'{}');
+    if(raw.day === todayKey()) return raw.count||0;
+  }catch(e){}
+  return 0;
+}
+function bumpTally(){
+  let c = getTally()+1;
+  try{ localStorage.setItem('ordskatt', JSON.stringify({day:todayKey(), count:c})); }catch(e){}
+  drawTally(c);
+}
+function drawTally(c){
+  $('tally').textContent = c===0
+    ? "Ni har inte öppnat någon skatt än idag."
+    : "Ni har öppnat " + c + (c===1?" skatt":" skatter") + " idag. 🏆";
+}
+
+function setCovers(open){
+  document.querySelectorAll('.tile').forEach(t=>{
+    if(open) t.classList.add('open'); else t.classList.remove('open');
+  });
+  $('revealBtn').textContent = allOpen() ? "Dölj igen" : "Visa alla";
+}
+function allOpen(){
+  return [...document.querySelectorAll('.tile')].every(t=>t.classList.contains('open'));
+}
+
+function show(i, {daily=false, coversClosed=true}={}){
+  current = i;
+  const w = DECK[i];
+  $('emoji').textContent = w.em;
+  $('enword').textContent = w.en;
+  $('sv-word').textContent = w.sv;
+  $('en-word').textContent = w.en;
+  $('zh-word').textContent = w.zh;
+  $('zh-py').innerHTML = renderPinyin(w.py);
+  $('challenge').textContent = w.ch;
+  $('badge').textContent = daily ? "Dagens ord" : "Skatt";
+  setCovers(!coversClosed);
+}
+
+function popDragon(){
+  const d = $('dragon');
+  d.classList.remove('pop'); void d.offsetWidth; d.classList.add('pop');
+}
+
+function nextWord(){
+  let i;
+  do { i = Math.floor(Math.random()*DECK.length); } while(i===current && DECK.length>1);
+  show(i, {daily:false, coversClosed:true});
+  $('bubble').textContent = BUBBLES_NEW[Math.floor(Math.random()*BUBBLES_NEW.length)];
+  popDragon();
+  bumpTally();
+}
+
+// --- wiring ---
+document.querySelectorAll('.tile').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    t.classList.toggle('open');
+    $('revealBtn').textContent = allOpen() ? "Dölj igen" : "Visa alla";
+  });
+});
+$('revealBtn').addEventListener('click', ()=>{
+  setCovers(!allOpen());
+});
+$('nextBtn').addEventListener('click', nextWord);
+
+// --- boot: word of the day ---
+show(dayIndex() % DECK.length, {daily:true, coversClosed:true});
+$('bubble').textContent = BUBBLE_START;
+drawTally(getTally());
+</script>
+</body>
+</html>

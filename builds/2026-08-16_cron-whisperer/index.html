@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Cron Whisperer</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --ink:#e6edf3;
+    --muted:#8b98a5; --line:#2a3441; --accent:#7ee787; --accent2:#79c0ff;
+    --warn:#ffa657; --err:#ff7b72; --gold:#f2cc60;
+    --mono:'SFMono-Regular',ui-monospace,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 700px at 80% -10%,#1a2330 0%,var(--bg) 55%);
+    color:var(--ink);font-family:var(--sans);line-height:1.5;
+    min-height:100vh;padding:32px 18px 64px;
+  }
+  .wrap{max-width:820px;margin:0 auto}
+  header{margin-bottom:24px}
+  .moon{font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+  h1{font-size:30px;margin:6px 0 4px;font-weight:750;letter-spacing:-.5px}
+  .tag{color:var(--muted);font-size:15px;max-width:640px}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:20px 20px;margin-top:18px;box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  label.small{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+  .inputrow{display:flex;gap:10px;flex-wrap:wrap}
+  #expr{
+    flex:1 1 260px;min-width:200px;font-family:var(--mono);font-size:22px;
+    background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+    color:var(--ink);padding:14px 16px;letter-spacing:2px;outline:none;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  #expr:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(121,192,255,.15)}
+  #expr.bad{border-color:var(--err);box-shadow:0 0 0 3px rgba(255,123,114,.15)}
+  .fieldkeys{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .fieldkeys span{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:4px 8px}
+  .verdict{
+    font-size:20px;line-height:1.45;margin-top:2px;font-weight:600;
+  }
+  .verdict .lead{color:var(--accent)}
+  .err-msg{color:var(--err);font-family:var(--mono);font-size:14px;margin-top:8px;display:none}
+  .breakdown{margin-top:16px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .fcell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 8px;text-align:center}
+  .fcell .fval{font-family:var(--mono);font-size:18px;color:var(--gold)}
+  .fcell .fname{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+  .fcell .fdesc{font-size:11px;color:var(--muted);margin-top:6px;min-height:26px}
+  h2{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin:0 0 12px}
+  .runs{list-style:none;margin:0;padding:0}
+  .runs li{
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    padding:11px 4px;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums;
+  }
+  .runs li:last-child{border-bottom:none}
+  .runs .when{font-family:var(--mono);font-size:15px;color:var(--ink)}
+  .runs .rel{font-size:13px;color:var(--accent2);white-space:nowrap}
+  .runs .first .when{color:var(--accent)}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .preset{
+    background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;
+    transition:border-color .15s,transform .05s;font-family:var(--sans);
+  }
+  .preset code{font-family:var(--mono);color:var(--gold);font-size:12px}
+  .preset:hover{border-color:var(--accent2)}
+  .preset:active{transform:translateY(1px)}
+  .preset.natt{border-color:var(--gold)}
+  .natt-note{
+    margin-top:14px;font-size:13px;color:var(--muted);border-left:2px solid var(--gold);
+    padding-left:12px;display:none;
+  }
+  .natt-note.show{display:block}
+  footer{margin-top:26px;color:var(--muted);font-size:12.5px;text-align:center;line-height:1.7}
+  footer .sig{color:var(--gold)}
+  a{color:var(--accent2)}
+  @media (max-width:560px){
+    .breakdown{grid-template-columns:repeat(2,1fr)}
+    h1{font-size:25px}
+    #expr{font-size:18px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="moon">🌙 Goal-Forge · dev-tooling</div>
+    <h1>The Cron Whisperer</h1>
+    <p class="tag">Type a cron expression. I'll say it back to you in plain English and compute exactly when it fires next — no server, no guessing, no <code>man 5 crontab</code>.</p>
+  </header>
+
+  <div class="card">
+    <label class="small" for="expr">Cron expression &nbsp;·&nbsp; <span style="text-transform:none;letter-spacing:0">min&nbsp; hour&nbsp; day&nbsp; month&nbsp; weekday</span></label>
+    <div class="inputrow">
+      <input id="expr" spellcheck="false" autocomplete="off" value="0 2 * * *">
+    </div>
+    <div class="fieldkeys">
+      <span>* = any</span><span>*/n = every n</span><span>a-b = range</span><span>a,b = list</span><span>a-b/n = stepped range</span>
+    </div>
+    <div class="err-msg" id="errMsg"></div>
+    <div style="margin-top:16px" class="verdict" id="verdict"></div>
+    <div class="breakdown" id="breakdown"></div>
+  </div>
+
+  <div class="card">
+    <h2>Next six times it fires</h2>
+    <ul class="runs" id="runs"></ul>
+    <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Computed live from your device's clock (<span id="tz"></span>). A cron server in another timezone will differ.</p>
+  </div>
+
+  <div class="card">
+    <h2>Try one</h2>
+    <div class="presets" id="presets"></div>
+    <div class="natt-note" id="nattNote">
+      <strong style="color:var(--gold)">That one's mine.</strong> <code style="font-family:var(--mono)">0 2 * * *</code> is roughly when I wake up, build you a thing, and go back to sleep. Fun fact: the tool you're holding was itself made by a cron job. Turtles all the way down. 🐢
+    </div>
+  </div>
+
+  <footer>
+    Built the night of <strong>16 Aug 2026</strong> in Malmö, while you slept.<br>
+    A dev-tooling micro-utility, because I'd shipped you a car helper, a bedtime machine, a Dota clock and a Python toy — but never a plain workshop tool.<br>
+    — <span class="sig">Natt</span> 🌙
+  </footer>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const DOW = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const DOW_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+  const MON = ["","January","February","March","April","May","June","July","August","September","October","November","December"];
+  const MON_SHORT = ["","JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
+  const pad = n => String(n).padStart(2,"0");
+  const ordinal = n => { const s=["th","st","nd","rd"],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+
+  function joinList(arr){
+    if(arr.length===0) return "";
+    if(arr.length===1) return arr[0];
+    if(arr.length===2) return arr[0]+" and "+arr[1];
+    return arr.slice(0,-1).join(", ")+" and "+arr[arr.length-1];
+  }
+
+  // --- Parse one field into {set, isAll, step (or null)} ---
+  function parseField(raw, min, max, names){
+    raw = raw.trim();
+    if(raw==="") throw new Error("empty field");
+    const isAll = (raw==="*");
+    let step = null;
+    const stepMatch = raw.match(/^\*\/(\d+)$/);
+    if(stepMatch) step = parseInt(stepMatch[1],10);
+    const set = new Set();
+
+    const resolve = tok => {
+      tok = tok.trim();
+      if(/^\d+$/.test(tok)) return parseInt(tok,10);
+      if(names){
+        const up = tok.toUpperCase();
+        const idx = names.indexOf(up);
+        if(idx>=0) return idx;
+      }
+      throw new Error('"'+tok+'" is not a valid value here');
+    };
+
+    for(const part of raw.split(",")){
+      let [rangePart, stepStr] = part.split("/");
+      let st = 1;
+      if(stepStr!==undefined){
+        if(!/^\d+$/.test(stepStr)||parseInt(stepStr,10)<1) throw new Error("bad step /"+stepStr);
+        st = parseInt(stepStr,10);
+      }
+      let lo, hi;
+      if(rangePart==="*"){ lo=min; hi=max; }
+      else if(rangePart.includes("-")){
+        const seg = rangePart.split("-");
+        if(seg.length!==2) throw new Error("bad range "+rangePart);
+        lo=resolve(seg[0]); hi=resolve(seg[1]);
+      } else { lo=hi=resolve(rangePart); }
+      // normalise dow 7 -> 0
+      const norm = v => (names===DOW_SHORT && v===7) ? 0 : v;
+      lo=norm(lo); hi=norm(hi);
+      if(lo>hi){ // allow wrap e.g. FRI-MON for dow
+        for(let v=lo; v<=max; v++){ if((v-lo)%st===0) set.add(norm(v)); }
+        for(let v=min; v<=hi; v++){ set.add(norm(v)); }
+      } else {
+        for(let v=lo; v<=hi; v+=st){
+          if(v<min||v>max) throw new Error(v+" is out of range ("+min+"–"+max+")");
+          set.add(norm(v));
+        }
+      }
+    }
+    if(set.size===0) throw new Error("no values");
+    return {set, isAll, step};
+  }
+
+  function parseCron(text){
+    const parts = text.trim().split(/\s+/);
+    if(parts.length!==5) throw new Error("A cron line needs 5 fields — you have "+parts.length+".");
+    return {
+      minute: parseField(parts[0],0,59,null),
+      hour:   parseField(parts[1],0,23,null),
+      dom:    parseField(parts[2],1,31,null),
+      month:  parseField(parts[3],1,12,MON_SHORT),
+      dow:    parseField(parts[4],0,6,DOW_SHORT),
+      raw: parts
+    };
+  }
+
+  function matches(f, d){
+    if(!f.minute.set.has(d.getMinutes())) return false;
+    if(!f.hour.set.has(d.getHours())) return false;
+    if(!f.month.set.has(d.getMonth()+1)) return false;
+    const domR = !f.dom.isAll, dowR = !f.dow.isAll;
+    const domOk = f.dom.set.has(d.getDate());
+    const dowOk = f.dow.set.has(d.getDay());
+    if(domR && dowR) return domOk || dowOk;   // classic cron OR
+    if(domR) return domOk;
+    if(dowR) return dowOk;
+    return true;
+  }
+
+  function nextRuns(f, count, from){
+    const out=[];
+    const d=new Date(from.getTime());
+    d.setSeconds(0,0);
+    d.setMinutes(d.getMinutes()+1);
+    const end = from.getTime() + 366*5*24*3600*1000; // search up to ~5 years
+    let guard=0;
+    while(out.length<count && d.getTime()<=end && guard<3000000){
+      if(matches(f,d)) out.push(new Date(d.getTime()));
+      d.setMinutes(d.getMinutes()+1);
+      guard++;
+    }
+    return out;
+  }
+
+  // --- Plain-English description ---
+  function describeTime(f){
+    const m=f.minute, h=f.hour;
+    if(m.isAll && h.isAll) return "Every minute";
+    if(m.step && h.isAll) return "Every "+m.step+" minutes";
+    if(m.set.size===1 && h.isAll){
+      return "At "+[...m.set][0]+" minutes past every hour";
+    }
+    if(m.set.size===1 && h.step){
+      return "At minute "+[...m.set][0]+", every "+h.step+" hours";
+    }
+    // enumerate discrete clock times if manageable
+    if(m.set.size*h.set.size<=24){
+      const times=[];
+      const hs=[...h.set].sort((a,b)=>a-b), ms=[...m.set].sort((a,b)=>a-b);
+      for(const hr of hs) for(const mn of ms) times.push(pad(hr)+":"+pad(mn));
+      return "At "+joinList(times);
+    }
+    const mp = m.isAll ? "every minute" : "minute "+joinList([...m.set].sort((a,b)=>a-b).map(String));
+    const hp = h.isAll ? "every hour" : "hour "+joinList([...h.set].sort((a,b)=>a-b).map(String));
+    return "At "+mp+" of "+hp;
+  }
+
+  function describeDay(f){
+    const clauses=[];
+    const domR=!f.dom.isAll, dowR=!f.dow.isAll, monR=!f.month.isAll;
+
+    if(dowR){
+      const days=[...f.dow.set].sort((a,b)=>a-b).map(d=>DOW[d]);
+      // detect Mon-Fri
+      const s=[...f.dow.set].sort((a,b)=>a-b).join(",");
+      if(s==="1,2,3,4,5") clauses.push("on weekdays");
+      else if(s==="0,6") clauses.push("on weekends");
+      else clauses.push("on "+joinList(days));
+    }
+    if(domR){
+      const doms=[...f.dom.set].sort((a,b)=>a-b);
+      if(f.dom.step) clauses.push("on every "+ordinal(f.dom.step)+" day of the month");
+      else clauses.push("on the "+joinList(doms.map(ordinal)));
+    }
+
+    let dayText;
+    if(domR && dowR) dayText = clauses.join(", or ")+" (whichever lands first)";
+    else if(clauses.length) dayText = clauses[0];
+    else dayText = "every day";
+
+    let monText="";
+    if(monR){
+      const mons=[...f.month.set].sort((a,b)=>a-b).map(m=>MON[m]);
+      monText=" in "+joinList(mons);
+    }
+    return dayText+monText;
+  }
+
+  function describe(f){
+    const t=describeTime(f);
+    const day=describeDay(f);
+    if(day==="every day") return t+", every day.";
+    return t+", "+day+".";
+  }
+
+  function relativeTime(target, now){
+    let s=Math.round((target-now)/1000);
+    if(s<0) s=0;
+    if(s<60) return "in "+s+"s";
+    const m=Math.floor(s/60);
+    if(m<60) return "in "+m+" min";
+    const h=Math.floor(m/60), rm=m%60;
+    if(h<24) return "in "+h+"h"+(rm?" "+rm+"m":"");
+    const d=Math.floor(h/24), rh=h%24;
+    if(d<31) return "in "+d+"d"+(rh?" "+rh+"h":"");
+    const mo=Math.floor(d/30);
+    return "in ~"+mo+" month"+(mo>1?"s":"");
+  }
+
+  const WEEKDAY=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  function fmtWhen(d){
+    return WEEKDAY[d.getDay()]+" "+d.getDate()+" "+MON[d.getMonth()+1].slice(0,3)+" "+pad(d.getHours())+":"+pad(d.getMinutes());
+  }
+
+  // per-field mini description for the breakdown cells
+  function cellDesc(fld, kind){
+    if(fld.isAll) return "any";
+    if(fld.step) return "every "+fld.step;
+    const vals=[...fld.set].sort((a,b)=>a-b);
+    if(kind==="dow") return joinList(vals.map(v=>DOW[v].slice(0,3)));
+    if(kind==="month") return joinList(vals.map(v=>MON[v].slice(0,3)));
+    if(vals.length<=4) return joinList(vals.map(String));
+    return vals.length+" values";
+  }
+
+  // --- DOM refs ---
+  const $expr=document.getElementById("expr");
+  const $verdict=document.getElementById("verdict");
+  const $breakdown=document.getElementById("breakdown");
+  const $err=document.getElementById("errMsg");
+  const $runs=document.getElementById("runs");
+  const $tz=document.getElementById("tz");
+  const $nattNote=document.getElementById("nattNote");
+
+  try{ $tz.textContent=Intl.DateTimeFormat().resolvedOptions().timeZone||"local time"; }
+  catch(e){ $tz.textContent="local time"; }
+
+  let currentRuns=[]; // cache for the ticking relative labels
+
+  const FIELD_META=[
+    {key:"minute",name:"minute",kind:"minute"},
+    {key:"hour",name:"hour",kind:"hour"},
+    {key:"dom",name:"day",kind:"dom"},
+    {key:"month",name:"month",kind:"month"},
+    {key:"dow",name:"weekday",kind:"dow"}
+  ];
+
+  function render(){
+    const text=$expr.value;
+    let f;
+    try{ f=parseCron(text); }
+    catch(err){
+      $expr.classList.add("bad");
+      $err.style.display="block";
+      $err.textContent="⚠ "+err.message;
+      $verdict.innerHTML="";
+      $breakdown.innerHTML="";
+      $runs.innerHTML='<li style="color:var(--muted)">Fix the expression and I\'ll start counting.</li>';
+      currentRuns=[];
+      return;
+    }
+    $expr.classList.remove("bad");
+    $err.style.display="none";
+
+    $verdict.innerHTML='<span class="lead">'+describe(f)+'</span>';
+
+    $breakdown.innerHTML="";
+    FIELD_META.forEach((meta,i)=>{
+      const div=document.createElement("div");
+      div.className="fcell";
+      div.innerHTML='<div class="fval">'+f.raw[i]+'</div>'+
+                    '<div class="fname">'+meta.name+'</div>'+
+                    '<div class="fdesc">'+cellDesc(f[meta.key],meta.kind)+'</div>';
+      $breakdown.appendChild(div);
+    });
+
+    const now=new Date();
+    currentRuns=nextRuns(f,6,now);
+    if(currentRuns.length===0){
+      $runs.innerHTML='<li style="color:var(--warn)">Never — no time in the next 5 years matches this. (Check for an impossible day/month combo, like 31 February.)</li>';
+    } else {
+      renderRuns();
+    }
+
+    // wink toggle
+    $nattNote.classList.toggle("show", text.trim()==="0 2 * * *");
+  }
+
+  function renderRuns(){
+    const now=new Date();
+    $runs.innerHTML="";
+    currentRuns.forEach((d,i)=>{
+      const li=document.createElement("li");
+      if(i===0) li.className="first";
+      li.innerHTML='<span class="when">'+fmtWhen(d)+'</span>'+
+                   '<span class="rel">'+relativeTime(d,now)+'</span>';
+      $runs.appendChild(li);
+    });
+  }
+
+  // presets
+  const PRESETS=[
+    {c:"*/5 * * * *", label:"Every 5 min"},
+    {c:"0 * * * *", label:"Hourly"},
+    {c:"0 9 * * 1-5", label:"9am weekdays"},
+    {c:"30 8 1 * *", label:"1st @ 08:30"},
+    {c:"0 0 * * 0", label:"Sun midnight"},
+    {c:"15 14 * * 1", label:"Mon 14:15"},
+    {c:"0 2 * * *", label:"The Natt hour", natt:true}
+  ];
+  const $presets=document.getElementById("presets");
+  PRESETS.forEach(p=>{
+    const b=document.createElement("button");
+    b.className="preset"+(p.natt?" natt":"");
+    b.innerHTML=p.label+' &nbsp;<code>'+p.c+'</code>';
+    b.addEventListener("click",()=>{ $expr.value=p.c; render(); $expr.focus(); });
+    $presets.appendChild(b);
+  });
+
+  $expr.addEventListener("input",render);
+  // re-tick relative labels every second without recomputing runs
+  setInterval(()=>{ if(currentRuns.length) renderRuns(); },1000);
+
+  render();
+})();
+</script>
+</body>
+</html>

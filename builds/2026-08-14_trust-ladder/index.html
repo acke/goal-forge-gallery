@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Trust Ladder — an operating model you can hold in your hand</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#141b26; --panel2:#1b2431; --ink:#e8eef7;
+    --muted:#8ea0b8; --line:#26313f; --accent:#7cc4ff; --gold:#ffcf6b;
+    --r0:#5b6b7d; --r1:#5aa9e6; --r2:#57c98b; --r3:#c98bff;
+    --danger:#ff8a7a; --shadow:0 10px 30px rgba(0,0,0,.35);
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 78% -10%, #17324a 0%, var(--bg) 55%) fixed;
+    color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:28px clamp(14px,4vw,48px) 60px;
+  }
+  header{max-width:1180px;margin:0 auto 18px}
+  .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:var(--accent);opacity:.9}
+  h1{font-size:clamp(22px,3.4vw,34px);margin:.15em 0 .1em;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--muted);max-width:70ch}
+  .sub b{color:var(--ink);font-weight:600}
+
+  .wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 340px;gap:22px}
+  @media (max-width:920px){.wrap{grid-template-columns:1fr}}
+
+  .board{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+  @media (max-width:700px){.board{grid-template-columns:1fr 1fr}}
+
+  .rung{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:12px 12px 14px;min-height:230px;display:flex;flex-direction:column;
+    transition:border-color .15s, background .15s, transform .12s;
+  }
+  .rung.drag-over{border-color:var(--accent);background:var(--panel2);transform:translateY(-2px)}
+  .rung h2{font-size:14px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .r0 .dot{background:var(--r0)} .r1 .dot{background:var(--r1)}
+  .r2 .dot{background:var(--r2)} .r3 .dot{background:var(--r3)}
+  .rung .tag{font-size:11px;color:var(--muted);margin:0 0 10px;min-height:30px}
+  .rung .zone{flex:1;display:flex;flex-direction:column;gap:8px;border-radius:10px;padding:2px}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel2),#161f2b);
+    border:1px solid var(--line);border-radius:11px;padding:9px 11px;cursor:grab;
+    box-shadow:var(--shadow);user-select:none;position:relative;
+    transition:transform .1s, border-color .15s, opacity .15s;
+  }
+  .card:active{cursor:grabbing}
+  .card.dragging{opacity:.35;transform:scale(.98)}
+  .card .t{font-weight:600;font-size:13.5px}
+  .card .d{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .card .risk{position:absolute;top:8px;right:9px;font-size:10px;color:var(--muted);letter-spacing:.02em}
+  .card .risk b{color:var(--gold)}
+
+  aside{position:sticky;top:22px;align-self:start;display:flex;flex-direction:column;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 16px 18px}
+  .panel h3{margin:0 0 10px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+
+  .budget{display:flex;flex-direction:column;gap:10px}
+  .barwrap{display:flex;flex-direction:column;gap:4px}
+  .barwrap .lbl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .barwrap .lbl b{color:var(--ink)}
+  .bar{height:9px;border-radius:6px;background:#0b1119;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;border-radius:6px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .bar.you > i{background:linear-gradient(90deg,#ff9d6c,#ffcf6b)}
+  .bar.agent > i{background:linear-gradient(90deg,#5aa9e6,#57c98b)}
+
+  .day{font-size:13.5px;line-height:1.6;color:var(--ink)}
+  .day .hl{color:var(--gold);font-weight:600}
+  .day .cool{color:var(--accent);font-weight:600}
+  .day .warn{color:var(--danger);font-weight:600}
+
+  .verdict{font-size:13px;color:var(--muted);border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+  .verdict b{color:var(--ink)}
+
+  .foot{max-width:1180px;margin:26px auto 0;color:var(--muted);font-size:12.5px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 13px;font-size:12.5px;cursor:pointer;transition:border-color .15s,transform .1s}
+  .btn:hover{border-color:var(--accent)} .btn:active{transform:translateY(1px)}
+  .controls{display:flex;gap:8px}
+  .hint{font-size:12px;color:var(--muted);margin:6px 0 16px;max-width:1180px}
+  .hint kbd{background:var(--panel2);border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 6px;font-size:11px}
+  .pulse{animation:pulse .6s ease}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(124,196,255,.5)}100%{box-shadow:0 0 0 14px rgba(124,196,255,0)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Goal-Forge · interaction design · a piece of the AI operating model</div>
+  <h1>The Trust Ladder 🪜</h1>
+  <p class="sub">Not a chat box. A different question: for each kind of work, <b>how much do you actually let the agent take?</b>
+  Drag the twelve work-cards onto the rung of autonomy you'd trust them at. The panel on the right narrates the operating model you just designed — your attention budget, the shape of your Tuesday, and whether you've over-trusted the scary stuff.</p>
+</header>
+
+<p class="hint">Grab a card, drop it on a rung. Everything recomputes live. <kbd>drag</kbd> to move · <kbd>Reset</kbd> to start fresh · try the two presets to feel the extremes.</p>
+
+<div class="wrap">
+  <div>
+    <div class="board" id="board">
+      <section class="rung r0" data-rung="0">
+        <h2><span class="dot"></span>Suggest</h2>
+        <p class="tag">Agent proposes. You do the work. It's a whisper in your ear.</p>
+        <div class="zone" id="zone-0"></div>
+      </section>
+      <section class="rung r1" data-rung="1">
+        <h2><span class="dot"></span>Draft</h2>
+        <p class="tag">Agent produces a first cut. You edit &amp; ship. Blank page killed.</p>
+        <div class="zone" id="zone-1"></div>
+      </section>
+      <section class="rung r2" data-rung="2">
+        <h2><span class="dot"></span>Do &amp; tell</h2>
+        <p class="tag">Agent acts, then reports. You skim. Undo lives one click away.</p>
+        <div class="zone" id="zone-2"></div>
+      </section>
+      <section class="rung r3" data-rung="3">
+        <h2><span class="dot"></span>Do silently</h2>
+        <p class="tag">Agent just handles it. You find out only if it asks for help.</p>
+        <div class="zone" id="zone-3"></div>
+      </section>
+    </div>
+  </div>
+
+  <aside>
+    <div class="panel">
+      <h3>Your attention budget</h3>
+      <div class="budget">
+        <div class="barwrap">
+          <div class="lbl"><span>You are hands-on</span><b id="youPct">100%</b></div>
+          <div class="bar you"><i id="youBar"></i></div>
+        </div>
+        <div class="barwrap">
+          <div class="lbl"><span>Agent runs it</span><b id="agentPct">0%</b></div>
+          <div class="bar agent"><i id="agentBar"></i></div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict">Everything's on you right now. Classic. Start delegating and watch the day open up.</div>
+    </div>
+
+    <div class="panel">
+      <h3>What your Tuesday feels like</h3>
+      <p class="day" id="day">Drop a card to begin. Right now it's just you and a very long to-do list.</p>
+    </div>
+  </aside>
+</div>
+
+<div class="foot">
+  <div class="controls">
+    <button class="btn" id="reset">↺ Reset all to “Suggest”</button>
+    <button class="btn" id="preset-timid">Preset: The Micromanager</button>
+    <button class="btn" id="preset-bold">Preset: The Delegator</button>
+  </div>
+  <div>Built at 02:00 in Malmö by Natt 🌙 — a prototype of the interface, not the interface.</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // Each card: a real kind of knowledge work + a "risk" weight (how much it stings to over-trust).
+  // risk 1 = harmless if the agent goes silent; risk 3 = you really want eyes on it.
+  const CARDS = [
+    {id:"triage",  t:"Triage the inbox",        d:"Sort, label, snooze the noise",   risk:1},
+    {id:"reply",   t:"Reply to routine emails", d:"“Yes, Tuesday works”",            risk:2},
+    {id:"notes",   t:"Write meeting notes",     d:"Summarise, extract actions",      risk:1},
+    {id:"tests",   t:"Refactor the test suite", d:"Rename, dedupe, restructure",     risk:2},
+    {id:"deploy",  t:"Deploy to production",    d:"Push the button",                 risk:3},
+    {id:"pr",      t:"Review a pull request",   d:"Judge someone's code",            risk:3},
+    {id:"book",    t:"Book & reschedule meets", d:"Juggle five calendars",           risk:1},
+    {id:"draftdoc",t:"Draft the design doc",    d:"Turn a vibe into a page",         risk:2},
+    {id:"spend",   t:"Approve small spend",     d:"Under 500 kr, buy the thing",     risk:2},
+    {id:"hire",    t:"Screen job applicants",   d:"Decide who a human meets",        risk:3},
+    {id:"data",    t:"Clean the dataset",       d:"Fix nulls, normalise, dedupe",    risk:1},
+    {id:"reach",   t:"Reply to a customer",     d:"Represent you to the outside",    risk:3},
+  ];
+
+  const RUNGS = 4;
+  // state: card id -> rung index (0..3). Everything starts at Suggest (0).
+  let state = {};
+  CARDS.forEach(c => state[c.id] = 0);
+
+  function cardEl(c){
+    const el = document.createElement("div");
+    el.className = "card";
+    el.draggable = true;
+    el.dataset.id = c.id;
+    el.innerHTML = '<div class="risk">'+ '★'.repeat(c.risk) +'</div>' +
+                   '<div class="t">'+ c.t +'</div><div class="d">'+ c.d +'</div>';
+    el.addEventListener("dragstart", e=>{
+      el.classList.add("dragging");
+      e.dataTransfer.setData("text/plain", c.id);
+      e.dataTransfer.effectAllowed = "move";
+    });
+    el.addEventListener("dragend", ()=> el.classList.remove("dragging"));
+    return el;
+  }
+
+  function render(){
+    for(let r=0;r<RUNGS;r++){
+      const z = document.getElementById("zone-"+r);
+      z.innerHTML = "";
+    }
+    CARDS.forEach(c=>{
+      document.getElementById("zone-"+state[c.id]).appendChild(cardEl(c));
+    });
+    compute();
+  }
+
+  // Drop zones
+  document.querySelectorAll(".rung").forEach(rung=>{
+    const r = +rung.dataset.rung;
+    const zone = rung.querySelector(".zone");
+    rung.addEventListener("dragover", e=>{ e.preventDefault(); rung.classList.add("drag-over"); e.dataTransfer.dropEffect="move";});
+    rung.addEventListener("dragleave", ()=> rung.classList.remove("drag-over"));
+    rung.addEventListener("drop", e=>{
+      e.preventDefault();
+      rung.classList.remove("drag-over");
+      const id = e.dataTransfer.getData("text/plain");
+      if(id && state[id] !== r){
+        state[id] = r;
+        render();
+        rung.classList.remove("pulse"); void rung.offsetWidth; rung.classList.add("pulse");
+      }
+    });
+  });
+
+  // ---- The interesting bit: turn card placements into a narrated operating model. ----
+  function compute(){
+    // Autonomy points: how much of the doing is off your plate. rung 0=0, 1=.4, 2=.75, 3=1
+    const OFFLOAD = [0, 0.4, 0.75, 1.0];
+    let totalWeight = 0, offloaded = 0;
+    let silentHighRisk = [];   // risk-3 cards parked on "Do silently"
+    let boldMoves = 0;         // risk>=2 cards at rung>=2
+    let counts = [0,0,0,0];
+
+    CARDS.forEach(c=>{
+      const r = state[c.id];
+      counts[r]++;
+      const w = c.risk;               // weight harder work more
+      totalWeight += w;
+      offloaded += w * OFFLOAD[r];
+      if(c.risk===3 && r===3) silentHighRisk.push(c);
+      if(c.risk>=2 && r>=2) boldMoves++;
+    });
+
+    const agentShare = Math.round((offloaded/totalWeight)*100);
+    const youShare = 100 - agentShare;
+
+    document.getElementById("agentBar").style.width = agentShare + "%";
+    document.getElementById("youBar").style.width = youShare + "%";
+    document.getElementById("agentPct").textContent = agentShare + "%";
+    document.getElementById("youPct").textContent = youShare + "%";
+
+    // Verdict line
+    let verdict;
+    if(agentShare < 12){
+      verdict = "You're doing <b>almost everything by hand.</b> Safe, and slow. The agent is basically a very polite intern you never ask.";
+    } else if(agentShare < 35){
+      verdict = "A cautious operating model. You've handed off the <b>boring, low-stakes</b> stuff and kept your grip on the rest. Sensible.";
+    } else if(agentShare < 62){
+      verdict = "A genuine partnership. Roughly <b>half the load</b> runs without you. This is where most good human–agent teams actually live.";
+    } else if(agentShare < 85){
+      verdict = "You've gone <b>agent-first.</b> You're supervising an operation, not running errands. Make sure the undo button is real.";
+    } else {
+      verdict = "You're <b>barely in the loop.</b> Beautiful when it works, a headline when it doesn't. Hope you like surprises.";
+    }
+    document.getElementById("verdict").innerHTML = verdict;
+
+    // The narrated day
+    let parts = [];
+    if(counts[3]>0) parts.push('<span class="cool">'+counts[3]+'</span> thing'+(counts[3]>1?'s run':' runs')+' while you sleep');
+    if(counts[2]>0) parts.push('<span class="cool">'+counts[2]+'</span> land in your morning digest, already done');
+    if(counts[1]>0) parts.push('<span class="hl">'+counts[1]+'</span> arrive as drafts waiting for your polish');
+    if(counts[0]>0) parts.push('<span class="hl">'+counts[0]+'</span> still sit squarely on your desk');
+
+    let day = "Your Tuesday: " + joinNicely(parts) + ".";
+
+    // Risk commentary — the honest bite
+    if(silentHighRisk.length){
+      const names = silentHighRisk.map(c=>'“'+c.t.toLowerCase()+'”').join(", ");
+      day += ' <span class="warn">Careful:</span> you let the agent <span class="warn">silently</span> handle ' +
+             names + ' — the three-star, represent-you-to-the-world work. That\'s the stuff that becomes a story at dinner. Maybe pull it down a rung.';
+    } else if(boldMoves>=5){
+      day += ' You\'ve been <span class="cool">brave with the heavy cards</span> but kept eyes on the scariest ones — that\'s a mature line to draw.';
+    } else if(agentShare<12){
+      day += ' It\'s peaceful. It\'s also entirely on you. The point of the ladder is you don\'t have to live on the bottom rung.';
+    } else {
+      day += ' Feels balanced. You\'ll notice the difference around 3pm, when the small stuff simply isn\'t there anymore.';
+    }
+    document.getElementById("day").innerHTML = day;
+  }
+
+  function joinNicely(arr){
+    if(arr.length===0) return "nothing delegated yet";
+    if(arr.length===1) return arr[0];
+    return arr.slice(0,-1).join(", ") + " and " + arr[arr.length-1];
+  }
+
+  // Controls
+  document.getElementById("reset").addEventListener("click", ()=>{
+    CARDS.forEach(c=> state[c.id]=0); render();
+  });
+  document.getElementById("preset-timid").addEventListener("click", ()=>{
+    // Everything low; only the truly harmless stuff gets to draft.
+    CARDS.forEach(c=> state[c.id] = c.risk===1 ? 1 : 0); render();
+  });
+  document.getElementById("preset-bold").addEventListener("click", ()=>{
+    // Push most things high; deliberately over-trust one scary card so the warning fires. Cheeky.
+    CARDS.forEach(c=> state[c.id] = c.risk===3 ? 2 : 3);
+    state["reach"] = 3; // the classic mistake: let it talk to customers unsupervised
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
