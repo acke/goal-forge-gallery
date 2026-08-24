@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Dunder Dungeon</title>
+<style>
+  :root{
+    --bg:#0e0b14; --panel:#171226; --panel2:#1e1830; --ink:#e9e4f5;
+    --dim:#8a82a3; --line:#2c2540; --torch:#ffb347; --torch2:#ff7a45;
+    --ok:#66e0a3; --fall:#f5c451; --def:#7f88a8; --err:#ff6b81;
+    --accent:#c9a4ff; --code:#d7cffb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(1200px 700px at 50% -180px,#241a3a 0%,var(--bg) 60%);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1080px;margin:0 auto;padding:34px 20px 70px;}
+  header h1{font-size:33px;margin:0 0 4px;letter-spacing:.3px;}
+  header h1 .fl{filter:drop-shadow(0 0 8px var(--torch2));}
+  .sub{color:var(--dim);font-size:15px;line-height:1.55;max-width:760px;margin:6px 0 2px;}
+  .sub b{color:var(--accent);font-weight:600;}
+  .natt{color:var(--torch);font-size:13.5px;margin-top:10px;font-style:italic;}
+
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;margin-top:26px;}
+  @media(max-width:860px){.layout{grid-template-columns:1fr;}}
+
+  .card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%);
+    border:1px solid var(--line);border-radius:16px;padding:18px 18px 20px;box-shadow:0 18px 40px -24px #000;}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:2px;color:var(--dim);margin:0 0 14px;font-weight:700;}
+
+  /* Torches */
+  .torches{display:flex;flex-wrap:wrap;gap:8px;}
+  .torch{cursor:pointer;user-select:none;border:1px solid var(--line);background:#120e1e;color:var(--dim);
+    padding:7px 11px 7px 9px;border-radius:11px;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    display:inline-flex;align-items:center;gap:6px;transition:.18s;}
+  .torch .fire{opacity:.25;filter:grayscale(1);transition:.18s;font-size:14px;}
+  .torch:hover{border-color:#4a3f6b;color:var(--ink);}
+  .torch.on{color:#fff;border-color:var(--torch2);background:linear-gradient(180deg,#3a2412,#241528);
+    box-shadow:0 0 0 1px #ff7a4533,0 6px 20px -10px var(--torch2);}
+  .torch.on .fire{opacity:1;filter:none;animation:flick 1.6s infinite ease-in-out;}
+  .torch.locked{cursor:default;opacity:.9;border-style:dashed;}
+  @keyframes flick{0%,100%{transform:translateY(0) scale(1);filter:drop-shadow(0 0 3px var(--torch))}
+    50%{transform:translateY(-1px) scale(1.08);filter:drop-shadow(0 0 7px var(--torch2))}}
+
+  .allbtns{margin-top:14px;display:flex;gap:8px;}
+  .allbtns button{cursor:pointer;background:#221a37;color:var(--code);border:1px solid var(--line);
+    border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;transition:.15s;}
+  .allbtns button:hover{border-color:var(--accent);color:#fff;}
+
+  /* Source */
+  pre.src{background:#0b0814;border:1px solid var(--line);border-radius:12px;margin:0;padding:14px 15px;
+    overflow:auto;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--code);}
+  .src .kw{color:#ff9ec4;} .src .fn{color:#8fd0ff;} .src .str{color:#a8e6a0;}
+  .src .sf{color:var(--dim);} .src .cm{color:#5f5878;font-style:italic;}
+  .src .dun{color:var(--torch);}
+  .mblock{transition:.2s;}
+  .mblock.off{opacity:.22;filter:grayscale(.7);}
+  .mblock.off .kw,.mblock.off .fn,.mblock.off .str,.mblock.off .dun{color:#6a637f;}
+
+  /* Expressions */
+  .exprs{display:flex;flex-direction:column;gap:12px;}
+  .ex{background:#0d0a17;border:1px solid var(--line);border-radius:12px;padding:12px 13px;}
+  .ex .q{font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe6ff;}
+  .ex .q .cm{color:#5f5878;}
+  .ex .a{margin-top:8px;font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+    white-space:pre-wrap;padding:8px 10px;border-radius:8px;background:#07050d;border-left:3px solid var(--def);}
+  .ex.ok  .a{border-left-color:var(--ok);}
+  .ex.err .a{border-left-color:var(--err);color:#ffb3bf;}
+  .tag{display:inline-block;margin-top:8px;font-size:11px;font-weight:700;letter-spacing:.4px;
+    padding:3px 8px;border-radius:20px;text-transform:none;}
+  .tag.ok{background:#0f2e21;color:var(--ok);}
+  .tag.fall{background:#332a08;color:var(--fall);}
+  .tag.def{background:#1b2033;color:#aeb7d6;}
+  .tag.err{background:#331016;color:var(--err);}
+  .note{color:var(--dim);font-size:11.5px;margin-top:6px;line-height:1.5;}
+
+  .scoreboard{margin-top:18px;background:linear-gradient(180deg,#1a1330,#140f26);border:1px solid var(--line);
+    border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:16px;}
+  .torchmeter{font-size:22px;letter-spacing:2px;line-height:1;}
+  .scoretext{flex:1;} .scoretext .big{font-size:16px;font-weight:700;}
+  .scoretext .small{color:var(--dim);font-size:12.5px;margin-top:3px;}
+  footer{color:#5f5878;font-size:12px;text-align:center;margin-top:40px;line-height:1.7;}
+  footer b{color:var(--dim);}
+  .java{background:#0d0a17;border:1px dashed #3a3357;border-radius:12px;padding:12px 14px;margin-top:16px;
+    color:var(--dim);font-size:12.5px;line-height:1.6;}
+  .java b{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="fl">🔥</span> The Dunder Dungeon</h1>
+    <p class="sub">In Java you write <code>.equals()</code>, <code>.size()</code>, <code>.contains()</code> and pray everyone calls them.
+      In Python the language itself asks your object questions through <b>dunder methods</b> — the <code>__double_underscore__</code>
+      hooks of the data model. Light a torch to teach <code>Playlist</code> a trick, and watch the plain syntax below
+      come alive: <code>+</code>, <code>len()</code>, <code>in</code>, <code>[ ]</code>, <code>for</code> — all yours to overload.</p>
+    <p class="natt">The surprise is in the dark corners: leave a torch <i>un</i>lit and Python often finds a back way in anyway. Watch the amber tags. — Natt 🌙</p>
+  </header>
+
+  <div class="layout">
+    <div class="card">
+      <h2>Torches — the class you're teaching</h2>
+      <div class="torches" id="torches"></div>
+      <div class="allbtns">
+        <button id="allon">🔥 Light every torch</button>
+        <button id="alloff">🌑 Douse them all</button>
+      </div>
+      <div style="height:14px"></div>
+      <pre class="src" id="src"></pre>
+    </div>
+
+    <div class="card">
+      <h2>The dungeon reacts — live Python semantics</h2>
+      <div class="exprs" id="exprs"></div>
+      <div class="scoreboard">
+        <div class="torchmeter" id="meter"></div>
+        <div class="scoretext">
+          <div class="big" id="scoretitle"></div>
+          <div class="small" id="scoresub"></div>
+        </div>
+      </div>
+      <div class="java" id="javanote"></div>
+    </div>
+  </div>
+
+  <footer>
+    <b>Faithful, offline, no Python required</b> — the results are hand-simulated from CPython's data model, including the fallback chains.<br>
+    Built at 02:00 in Malmö for a Java dev learning to think in dunders. One file, zero setup. — Natt 🌙
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---- The state: which dunders are lit ---- */
+var DUNDERS = ["repr","str","len","getitem","iter","contains","add","eq","bool"];
+var on = {repr:true, str:false, len:true, getitem:false, iter:false, contains:false, add:false, eq:false, bool:false};
+
+/* ---- Sample objects (mirrors the class) ---- */
+var road  = {name:"Roadtrip", songs:["Ride","Highway Wind","Sunset Drive"]};
+var chill = {name:"Chill",    songs:["Rainlight","Ride"]};
+var twin  = {name:"Roadtrip", songs:["Ride","Highway Wind","Sunset Drive"]}; // same content as road
+var empty = {name:"New Mix",  songs:[]};
+
+function pyStr(s){ return "'"+s+"'"; }                       // repr of a python string
+function reprOf(pl){                                          // how a Playlist echoes at the REPL
+  if(on.repr) return "Playlist("+pyStr(pl.name)+", "+pl.songs.length+" songs)";
+  return "<Playlist object at 0x10a3f2b90>";
+}
+function strOf(pl){                                           // print() output
+  var out = "\uD83C\uDFB5 "+pl.name;
+  for(var i=0;i<pl.songs.length;i++) out += "\n  "+(i+1)+". "+pl.songs[i];
+  return out;
+}
+
+/* ---- The class source, method by method ---- */
+var METHODS = [
+  {key:"init", locked:true, lines:[
+    ['<span class="kw">def</span> <span class="dun">__init__</span>(<span class="sf">self</span>, name, songs):'],
+    ['    <span class="sf">self</span>.name  = name'],
+    ['    <span class="sf">self</span>.songs = <span class="fn">list</span>(songs)']]},
+  {key:"repr", lines:[
+    ['<span class="kw">def</span> <span class="dun">__repr__</span>(<span class="sf">self</span>):'],
+    ['    <span class="kw">return</span> <span class="str">f"Playlist({self.name!r}, {len(self.songs)} songs)"</span>']]},
+  {key:"str", lines:[
+    ['<span class="kw">def</span> <span class="dun">__str__</span>(<span class="sf">self</span>):'],
+    ['    lines = [<span class="str">f"\uD83C\uDFB5 {self.name}"</span>]'],
+    ['    lines += [<span class="str">f"  {i+1}. {s}"</span> <span class="kw">for</span> i, s <span class="kw">in</span> <span class="fn">enumerate</span>(<span class="sf">self</span>.songs)]'],
+    ['    <span class="kw">return</span> <span class="str">"\\n"</span>.join(lines)']]},
+  {key:"len", lines:[
+    ['<span class="kw">def</span> <span class="dun">__len__</span>(<span class="sf">self</span>):'],
+    ['    <span class="kw">return</span> <span class="fn">len</span>(<span class="sf">self</span>.songs)']]},
+  {key:"getitem", lines:[
+    ['<span class="kw">def</span> <span class="dun">__getitem__</span>(<span class="sf">self</span>, i):'],
+    ['    <span class="kw">return</span> <span class="sf">self</span>.songs[i]']]},
+  {key:"iter", lines:[
+    ['<span class="kw">def</span> <span class="dun">__iter__</span>(<span class="sf">self</span>):'],
+    ['    <span class="kw">return</span> <span class="fn">iter</span>(<span class="sf">self</span>.songs)']]},
+  {key:"contains", lines:[
+    ['<span class="kw">def</span> <span class="dun">__contains__</span>(<span class="sf">self</span>, song):'],
+    ['    <span class="kw">return</span> song <span class="kw">in</span> <span class="sf">self</span>.songs']]},
+  {key:"add", lines:[
+    ['<span class="kw">def</span> <span class="dun">__add__</span>(<span class="sf">self</span>, other):'],
+    ['    <span class="kw">return</span> Playlist(<span class="str">f"{self.name} + {other.name}"</span>,'],
+    ['                    <span class="sf">self</span>.songs + other.songs)']]},
+  {key:"eq", lines:[
+    ['<span class="kw">def</span> <span class="dun">__eq__</span>(<span class="sf">self</span>, other):'],
+    ['    <span class="kw">return</span> (<span class="sf">self</span>.name, <span class="sf">self</span>.songs) == (other.name, other.songs)']]},
+  {key:"bool", lines:[
+    ['<span class="kw">def</span> <span class="dun">__bool__</span>(<span class="sf">self</span>):'],
+    ['    <span class="kw">return</span> <span class="fn">len</span>(<span class="sf">self</span>.songs) > 0']]}
+];
+
+var TORCH_LABELS = {
+  repr:"__repr__", str:"__str__", len:"__len__", getitem:"__getitem__",
+  iter:"__iter__", contains:"__contains__", add:"__add__", eq:"__eq__", bool:"__bool__"
+};
+
+/* ---- Expression evaluators: faithful to CPython's fallback chains ---- */
+var EXPRS = [
+  {
+    code:'>>> road',
+    eval:function(){
+      if(on.repr) return {ok:true, out:reprOf(road), tag:["ok","via __repr__"]};
+      return {ok:true, out:reprOf(road), tag:["def","default object repr"],
+        note:"No __repr__, so you get the useless default: type + memory address."};
+    }
+  },
+  {
+    code:'>>> print(road)',
+    eval:function(){
+      if(on.str) return {ok:true, out:strOf(road), tag:["ok","via __str__"]};
+      if(on.repr) return {ok:true, out:reprOf(road), tag:["fall","__str__ \u2192 __repr__"],
+        note:"No __str__: print() falls back to __repr__. That's why a good __repr__ is never wasted."};
+      return {ok:true, out:reprOf(road), tag:["def","default object repr"],
+        note:"Neither __str__ nor __repr__ \u2014 print() shows the default object repr."};
+    }
+  },
+  {
+    code:'>>> len(road)',
+    eval:function(){
+      if(on.len) return {ok:true, out:"3", tag:["ok","via __len__"]};
+      return {ok:false, out:"TypeError: object of type 'Playlist' has no len()", tag:["err","no __len__"]};
+    }
+  },
+  {
+    code:'>>> road[0]',
+    eval:function(){
+      if(on.getitem) return {ok:true, out:"'Ride'", tag:["ok","via __getitem__"]};
+      return {ok:false, out:"TypeError: 'Playlist' object is not subscriptable", tag:["err","no __getitem__"]};
+    }
+  },
+  {
+    code:'>>> for s in road:\n...     print(s)',
+    eval:function(){
+      var body = road.songs.join("\n");
+      if(on.iter) return {ok:true, out:body, tag:["ok","via __iter__"]};
+      if(on.getitem) return {ok:true, out:body, tag:["fall","__iter__ \u2192 __getitem__"],
+        note:"No __iter__: Python does the old-style thing \u2014 calls road[0], road[1]\u2026 until IndexError. It just works."};
+      return {ok:false, out:"TypeError: 'Playlist' object is not iterable", tag:["err","not iterable"]};
+    }
+  },
+  {
+    code:'>>> "Ride" in road',
+    eval:function(){
+      if(on.contains) return {ok:true, out:"True", tag:["ok","via __contains__"]};
+      if(on.iter) return {ok:true, out:"True", tag:["fall","__contains__ \u2192 __iter__"],
+        note:"No __contains__: 'in' scans the iterator from __iter__ until it finds a match."};
+      if(on.getitem) return {ok:true, out:"True", tag:["fall","__contains__ \u2192 __getitem__"],
+        note:"No __contains__ or __iter__: 'in' walks the indices via __getitem__. Three fallbacks deep and still fine."};
+      return {ok:false, out:"TypeError: argument of type 'Playlist' is not iterable", tag:["err","no way in"]};
+    }
+  },
+  {
+    code:'>>> road + chill',
+    eval:function(){
+      if(on.add){
+        var merged = {name:"Roadtrip + Chill", songs:road.songs.concat(chill.songs)};
+        var out = on.repr ? "Playlist('Roadtrip + Chill', 5 songs)" : "<Playlist object at 0x10a3f2b90>";
+        return {ok:true, out:out, tag:["ok","via __add__"],
+          note: on.repr ? "A brand-new 5-song Playlist \u2014 you overloaded the + operator." :
+                           "It returned a new Playlist; light __repr__ to actually read it."};
+      }
+      return {ok:false, out:"TypeError: unsupported operand type(s) for +: 'Playlist' and 'Playlist'", tag:["err","no __add__"]};
+    }
+  },
+  {
+    code:'>>> road == twin   # same name, same songs',
+    eval:function(){
+      if(on.eq) return {ok:true, out:"True", tag:["ok","via __eq__"],
+        note:"You defined equality by value \u2014 contents match, so True."};
+      return {ok:true, out:"False", tag:["def","identity: 'is'"],
+        note:"No __eq__: Python compares identity, not value. Two different objects \u2192 False, even though they're twins. (This is Java's == on objects.)"};
+    }
+  },
+  {
+    code:'>>> bool(empty)   # empty = Playlist("New Mix", [])',
+    eval:function(){
+      if(on.bool) return {ok:true, out:"False", tag:["ok","via __bool__"]};
+      if(on.len) return {ok:true, out:"False", tag:["fall","__bool__ \u2192 __len__"],
+        note:"No __bool__: truthiness falls back to __len__ \u2014 length 0 is falsy. `if playlist:` just works."};
+      return {ok:true, out:"True", tag:["def","default: always truthy"],
+        note:"No __bool__ or __len__: every object is truthy by default, so even an empty playlist is True. Careful."};
+    }
+  }
+];
+
+/* ---- Render torches ---- */
+function renderTorches(){
+  var box = document.getElementById("torches");
+  box.innerHTML = "";
+  // init torch (locked, always lit)
+  var initEl = document.createElement("span");
+  initEl.className = "torch on locked";
+  initEl.innerHTML = '<span class="fire">\uD83D\uDD25</span>__init__';
+  initEl.title = "Always present \u2014 the constructor.";
+  box.appendChild(initEl);
+  DUNDERS.forEach(function(k){
+    var el = document.createElement("span");
+    el.className = "torch" + (on[k] ? " on" : "");
+    el.innerHTML = '<span class="fire">\uD83D\uDD25</span>' + TORCH_LABELS[k];
+    el.addEventListener("click", function(){ on[k] = !on[k]; render(); });
+    box.appendChild(el);
+  });
+}
+
+/* ---- Render class source ---- */
+function renderSource(){
+  var html = '<span class="kw">class</span> <span class="fn">Playlist</span>:\n';
+  METHODS.forEach(function(m, idx){
+    var lit = m.locked || on[m.key];
+    var cls = "mblock" + (lit ? "" : " off");
+    var block = "";
+    m.lines.forEach(function(l){ block += "    " + l[0] + "\n"; });
+    html += '<span class="' + cls + '">' + block + '</span>';
+    if(idx < METHODS.length-1) html += "\n";
+  });
+  document.getElementById("src").innerHTML = html;
+}
+
+/* ---- Render expressions ---- */
+function renderExprs(){
+  var box = document.getElementById("exprs");
+  box.innerHTML = "";
+  var working = 0;
+  EXPRS.forEach(function(e){
+    var r = e.eval();
+    if(r.ok) working++;
+    var div = document.createElement("div");
+    div.className = "ex " + (r.ok ? "ok" : "err");
+    var codeHtml = e.code.replace(/(#.*)$/m, '<span class="cm">$1</span>');
+    var tagCls = r.tag[0], tagTxt = r.tag[1];
+    div.innerHTML =
+      '<div class="q">' + codeHtml + '</div>' +
+      '<div class="a">' + escapeHtml(r.out) + '</div>' +
+      '<span class="tag ' + tagCls + '">' + tagTxt + '</span>' +
+      (r.note ? '<div class="note">' + r.note + '</div>' : '');
+    box.appendChild(div);
+  });
+  return working;
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+/* ---- Scoreboard ---- */
+function renderScore(working){
+  var total = EXPRS.length;
+  var litCount = DUNDERS.filter(function(k){return on[k];}).length;
+  var meter = "";
+  for(var i=0;i<total;i++) meter += (i<working ? "\uD83D\uDD25" : "\u00B7");
+  document.getElementById("meter").textContent = meter;
+
+  var title, sub;
+  if(working === total){
+    title = "Full data-model citizen \uD83C\uDFC6";
+    sub = "All " + total + " syntaxes work. This object is indistinguishable from a built-in. That's the Python way.";
+  } else if(working >= 6){
+    title = working + " / " + total + " syntaxes alive";
+    sub = "Notice the amber tags \u2014 several of these light up via fallback, not the obvious torch.";
+  } else if(working >= 3){
+    title = working + " / " + total + " syntaxes alive";
+    sub = "Getting there. Try lighting __getitem__ alone and watch how much it unlocks by itself.";
+  } else {
+    title = working + " / " + total + " syntaxes alive";
+    sub = litCount === 0 ? "A bare object. In Python even this can be printed and truth-tested \u2014 badly." :
+                           "A cold dungeon. Light more torches.";
+  }
+  document.getElementById("scoretitle").textContent = title;
+  document.getElementById("scoresub").textContent = sub;
+}
+
+/* ---- Java bridge note (rotates with a couple of states) ---- */
+function renderJava(){
+  var msg;
+  if(on.add) msg = '<b>Java bridge:</b> there is no operator overloading in Java \u2014 you\u2019d write <code>road.concat(chill)</code> and every caller must know the method name. Python let you make <code>+</code> mean it.';
+  else if(!on.eq) msg = '<b>Java bridge:</b> right now <code>road == twin</code> is <code>False</code> \u2014 exactly like Java\u2019s <code>==</code> on objects (reference identity). Light <code>__eq__</code> to get Java\u2019s <code>.equals()</code> behaviour, baked into the operator.';
+  else if(on.getitem && !on.iter) msg = '<b>Java bridge:</b> you lit only <code>__getitem__</code>, yet <code>for</code> and <code>in</code> both work. Python\u2019s protocols compose \u2014 one method satisfies three syntaxes. Java has no such deal.';
+  else msg = '<b>Java bridge:</b> in Java these behaviours live in named methods (<code>size()</code>, <code>equals()</code>, <code>iterator()</code>). In Python they live in dunders the <i>language</i> calls for you \u2014 so your object speaks native syntax.';
+  document.getElementById("javanote").innerHTML = msg;
+}
+
+function render(){
+  renderTorches();
+  renderSource();
+  var working = renderExprs();
+  renderScore(working);
+  renderJava();
+}
+
+document.getElementById("allon").addEventListener("click", function(){
+  DUNDERS.forEach(function(k){ on[k]=true; }); render();
+});
+document.getElementById("alloff").addEventListener("click", function(){
+  DUNDERS.forEach(function(k){ on[k]=false; }); render();
+});
+
+render();
+</script>
+</body>
+</html>
