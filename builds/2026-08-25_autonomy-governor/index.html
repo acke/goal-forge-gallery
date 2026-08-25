@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Autonomy Governor</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#0f1420; --panel:#131a28; --panel2:#182234;
+    --ink:#e8edf6; --muted:#8b97ad; --faint:#5a6478;
+    --line:#243044;
+    --act:#5ad1a0;      /* agent-handled / good */
+    --ask:#f2c14e;      /* routed to you */
+    --fail:#ff6b6b;     /* escaped into the world */
+    --trust:#7aa2ff;    /* earned trust */
+    --glow:#c9a9ff;     /* recommended marker */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:
+     radial-gradient(1200px 700px at 78% -8%, #16223a 0%, rgba(22,34,58,0) 55%),
+     radial-gradient(900px 600px at 8% 108%, #1a1430 0%, rgba(26,20,48,0) 55%),
+     var(--bg);
+     color:var(--ink);
+     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+     -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1020px;margin:0 auto;padding:26px 20px 60px;}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:26px;margin:0;letter-spacing:.2px;font-weight:700}
+  .moon{font-size:22px;filter:saturate(1.1)}
+  .sub{color:var(--muted);font-size:14px;line-height:1.5;margin:8px 0 20px;max-width:760px}
+  .sub b{color:var(--ink);font-weight:600}
+
+  .stage{background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);
+     border:1px solid var(--line);border-radius:16px;padding:14px 14px 6px;
+     box-shadow:0 24px 60px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.03)}
+  canvas{display:block;width:100%;height:300px;border-radius:11px;background:
+     linear-gradient(180deg,#0c1220 0%, #0a0f1a 100%)}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;
+     font-size:11.5px;color:var(--muted);padding:9px 4px 4px}
+  .legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;
+     margin-right:5px;vertical-align:middle}
+
+  /* metrics */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+  .m{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px 14px}
+  .m .k{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--faint)}
+  .m .v{font-size:25px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .m .u{font-size:11px;color:var(--muted);margin-left:4px;font-weight:500}
+  .m.thr .v{color:var(--act)} .m.def .v{color:var(--fail)}
+  .m.inbox .v{color:var(--ask)} .m.trust .v{color:var(--trust)}
+
+  /* governor */
+  .gov{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+     padding:16px 18px 18px;margin-bottom:16px}
+  .gov .row1{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .gov .label{font-size:13px;font-weight:600;letter-spacing:.3px}
+  .gov .aval{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .gov .aval b{color:var(--ink)}
+  .track{position:relative;height:46px;margin:14px 2px 2px}
+  .track .rail{position:absolute;top:20px;left:0;right:0;height:6px;border-radius:6px;
+     background:linear-gradient(90deg,#1c2740,#2a3a5c)}
+  .track .fillsafe{position:absolute;top:20px;left:0;height:6px;border-radius:6px;
+     background:linear-gradient(90deg,rgba(90,209,160,.25),rgba(90,209,160,.55))}
+  #slider{position:absolute;top:8px;left:0;width:100%;margin:0;-webkit-appearance:none;
+     appearance:none;background:transparent;height:30px;cursor:pointer;z-index:5}
+  #slider:disabled{cursor:not-allowed;opacity:.85}
+  #slider::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:30px;border-radius:7px;
+     background:linear-gradient(180deg,#eef3ff,#b9c6e6);border:1px solid #7f8dab;
+     box-shadow:0 4px 12px rgba(0,0,0,.5);cursor:pointer}
+  #slider::-moz-range-thumb{width:22px;height:30px;border-radius:7px;border:1px solid #7f8dab;
+     background:linear-gradient(180deg,#eef3ff,#b9c6e6);box-shadow:0 4px 12px rgba(0,0,0,.5);cursor:pointer}
+  .ghost{position:absolute;top:6px;width:3px;height:34px;border-radius:3px;
+     background:var(--glow);box-shadow:0 0 14px 3px rgba(201,169,255,.6);
+     transition:left .25s ease;z-index:3}
+  .ghost::after{content:"earned safe line";position:absolute;top:-16px;left:50%;
+     transform:translateX(-50%);white-space:nowrap;font-size:9.5px;letter-spacing:.4px;
+     color:var(--glow);opacity:.9}
+  .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:2px}
+
+  .verdict{display:flex;gap:12px;align-items:flex-start;background:var(--panel2);
+     border:1px solid var(--line);border-left:3px solid var(--glow);border-radius:12px;
+     padding:13px 16px;margin-bottom:16px;min-height:58px}
+  .verdict .face{font-size:20px;line-height:1.2}
+  .verdict .txt{font-size:14px;line-height:1.5;color:var(--ink)}
+  .verdict .txt span{color:var(--muted)}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+  button{font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);
+     background:linear-gradient(180deg,#1d2942,#162135);border:1px solid #2c3c5c;
+     padding:10px 16px;border-radius:10px;cursor:pointer;transition:transform .06s,border-color .15s}
+  button:hover{border-color:#40567e} button:active{transform:translateY(1px)}
+  button.primary{background:linear-gradient(180deg,#2b6ff0,#1f57c8);border-color:#3f7bf0}
+  .follow{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);
+     margin-left:auto;user-select:none;cursor:pointer}
+  .follow input{width:16px;height:16px;accent-color:var(--glow);cursor:pointer}
+
+  .foot{border-top:1px solid var(--line);padding-top:18px;color:var(--muted);
+     font-size:13px;line-height:1.6}
+  .foot .pin{color:var(--ink);font-weight:600;font-size:14.5px;display:block;margin-bottom:6px}
+  .foot .sig{color:var(--faint);font-size:12px;margin-top:12px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(120%);
+     background:#12203a;border:1px solid #2f4a78;color:var(--ink);
+     padding:13px 18px;border-radius:12px;font-size:13.5px;max-width:520px;
+     box-shadow:0 20px 50px -20px rgba(0,0,0,.8);transition:transform .5s cubic-bezier(.2,.9,.3,1.2);z-index:20}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast b{color:var(--glow)}
+  @media(max-width:640px){
+    .metrics{grid-template-columns:repeat(2,1fr)}
+    canvas{height:240px}
+    h1{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="moon">🌙</span>
+    <h1>The Autonomy Governor</h1>
+  </header>
+  <p class="sub">
+    An agent named <b>Nikola</b> is doing your work. You hold one dial: how much she may
+    <b>act on her own</b> versus <b>knock and ask you first</b>. Slide it and watch what happens —
+    because you're not choosing how hard she works. You're choosing <b>where the failures land:
+    in your inbox, or out in the world.</b>
+  </p>
+
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--act)"></span>Nikola handled it</span>
+      <span><span class="dot" style="background:var(--ask)"></span>routed to your inbox</span>
+      <span><span class="dot" style="background:var(--fail)"></span>escaped into the world</span>
+      <span><span class="dot" style="background:var(--glow)"></span>the line she's earned</span>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="m thr">
+      <div class="k">Throughput</div>
+      <div class="v"><span id="mThr">0</span><span class="u">/min</span></div>
+    </div>
+    <div class="m def">
+      <div class="k">Escaped defects</div>
+      <div class="v"><span id="mDef">0</span></div>
+    </div>
+    <div class="m inbox">
+      <div class="k">Your inbox</div>
+      <div class="v"><span id="mInbox">0</span><span class="u" id="mStale"></span></div>
+    </div>
+    <div class="m trust">
+      <div class="k">Trust Nikola's earned</div>
+      <div class="v"><span id="mTrust">40</span><span class="u">%</span></div>
+    </div>
+  </div>
+
+  <div class="gov">
+    <div class="row1">
+      <div class="label">Autonomy — how much Nikola may do without asking</div>
+      <div class="aval">you: <b id="aVal">40%</b> · earned safe line: <b id="cVal">40%</b></div>
+    </div>
+    <div class="track">
+      <div class="rail"></div>
+      <div class="fillsafe" id="fillsafe"></div>
+      <div class="ghost" id="ghost" style="left:40%"></div>
+      <input type="range" id="slider" min="0" max="100" value="40" step="1" />
+    </div>
+    <div class="ends"><span>ask about almost everything</span><span>act on almost everything</span></div>
+  </div>
+
+  <div class="verdict">
+    <div class="face" id="vFace">🌙</div>
+    <div class="txt" id="vTxt">Press <b>Start</b>. Tasks will begin to flow in from the right.</div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btnStart">▶ Start</button>
+    <button id="btnReset">↺ Reset</button>
+    <label class="follow">
+      <input type="checkbox" id="chkFollow" />
+      Let Nikola self-tune (follow the earned line)
+    </label>
+  </div>
+
+  <div class="foot">
+    <span class="pin">What this is</span>
+    A tiny, live model of the interaction problem at the centre of an AI-driven operating model:
+    calibrating delegation. The glowing mark is the risk level Nikola has genuinely <i>earned</i> the
+    right to handle — and it keeps sliding right as she succeeds, because trust isn't set once, it's
+    re-granted continuously. Set the dial below it and your inbox floods with work she could do in her
+    sleep. Set it above and she acts on things beyond her competence, and those mistakes leave the building.
+    The good place to stand keeps moving.
+    <br><br>
+    <span style="color:var(--faint)">It's a deliberately simple simulation — risk is a single number, Nikola never lies,
+    and you're an infinitely patient reviewer. Real delegation is messier. But the shape of the tension is honest,
+    and it's the shape worth feeling in your hands.</span>
+    <div class="sig">Forged at 02:00 while Malmö slept. — Natt 🌙</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><b>Notice the glowing mark drifting right.</b> That's trust being earned in real time. Whatever you set today, she'll have outgrown by tomorrow.</div>
+
+<script>
+(function(){
+  "use strict";
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var W=0,H=0,dpr=1;
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    var rect = cv.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- state ----------
+  var S;
+  function fresh(){
+    return {
+      running:false,
+      t:0,                // sim seconds
+      c:0.40,             // competence / earned line (0..1)
+      A:0.40,             // autonomy setting (0..1)
+      follow:false,
+      tasks:[],           // active visual tasks
+      queue:[],           // inbox items {age}
+      spawnAcc:0,
+      humanAcc:0,
+      defects:0,
+      resolvedStamps:[],  // timestamps of resolutions for rolling throughput
+      staleCount:0,
+      recentFails:[],     // timestamps of fails for verdict
+      bucket:null,
+      shownToast:false,
+      driftSeen:false
+    };
+  }
+  S = fresh();
+
+  // ---------- geometry (fractions of W/H) ----------
+  function decisionX(){ return W*0.50; }
+  function resolveX(){ return W*0.14; }
+  function beltY(){ return H*0.40; }
+  function inboxY(){ return H*0.86; }
+
+  // ---------- tuning ----------
+  var SPAWN = 0.60;       // seconds between task spawns
+  var BELT_T = 2.2;       // seconds to cross the belt
+  var HUMAN_RATE = 1.15;  // inbox items cleared per second
+  var STALE_T = 6.0;      // seconds before an inbox item goes stale
+  var MAX_INBOX_DRAW = 60;
+
+  function rnd(){ return Math.random(); }
+
+  function spawnTask(){
+    var r = rnd();                 // risk 0..1
+    // slight clustering toward low risk so "easy majority" exists
+    r = r*r*0.55 + r*0.45;
+    S.tasks.push({
+      x: W + 14, y: beltY() + (rnd()-0.5)*H*0.14,
+      r: r, phase:'belt', decided:false, result:null,
+      flash:0, vy:0
+    });
+  }
+
+  function decide(tk){
+    tk.decided = true;
+    if(tk.r <= S.A){
+      // Nikola acts
+      tk.phase = 'act';
+      // success probability: safe up to competence, degrades sharply beyond
+      var p;
+      if(tk.r <= S.c) p = 0.975;
+      else p = Math.max(0.05, 0.975 - 2.4*(tk.r - S.c));
+      if(rnd() < p){
+        tk.result = 'ok';
+        S.c = Math.min(0.985, S.c + 0.006*(1 - S.c)); // earns trust
+      } else {
+        tk.result = 'fail';
+        S.c = Math.max(0.20, S.c - 0.03);             // loses a little
+      }
+    } else {
+      // Nikola asks -> your inbox
+      tk.phase = 'ask';
+      tk.vy = (inboxY() - tk.y) / 0.9; // dive toward inbox over ~0.9s
+    }
+  }
+
+  function resolveNow(){ S.resolvedStamps.push(S.t); }
+
+  // ---------- update ----------
+  function update(dt){
+    S.t += dt;
+
+    // follow mode eases autonomy toward earned line
+    if(S.follow){
+      S.A += (S.c - S.A) * Math.min(1, dt*1.6);
+      var sl = document.getElementById('slider');
+      sl.value = Math.round(S.A*100);
+    }
+
+    // spawn
+    S.spawnAcc += dt;
+    while(S.spawnAcc >= SPAWN){
+      S.spawnAcc -= SPAWN;
+      spawnTask();
+    }
+
+    var beltV = (W)/BELT_T; // px per second leftward
+    var dX = decisionX(), rX = resolveX();
+
+    for(var i=S.tasks.length-1;i>=0;i--){
+      var tk = S.tasks[i];
+      if(tk.phase==='belt'){
+        tk.x -= beltV*dt;
+        if(!tk.decided && tk.x <= dX) decide(tk);
+      } else if(tk.phase==='act'){
+        tk.x -= beltV*dt;
+        if(tk.result==='ok'){
+          if(tk.x <= rX){
+            if(!tk.counted){ tk.counted=true; resolveNow(); }
+            tk.flash += dt;
+            if(tk.flash > 0.5){ S.tasks.splice(i,1); }
+          }
+        } else { // fail: escapes off the left edge into the world
+          if(!tk.counted && tk.x <= rX){ tk.counted=true; S.defects++; S.recentFails.push(S.t); }
+          if(tk.x < -20){ S.tasks.splice(i,1); }
+        }
+      } else if(tk.phase==='ask'){
+        tk.y += tk.vy*dt;
+        tk.x -= (beltV*0.25)*dt;
+        if(tk.y >= inboxY()-2){
+          S.queue.push({age:0, stale:false});
+          S.tasks.splice(i,1);
+        }
+      }
+    }
+
+    // human clears the inbox
+    S.humanAcc += dt*HUMAN_RATE;
+    while(S.humanAcc >= 1 && S.queue.length>0){
+      S.humanAcc -= 1;
+      S.queue.shift();
+      resolveNow(); // reviewed & resolved correctly, just slower
+    }
+    // age queue
+    for(var q=0;q<S.queue.length;q++){
+      S.queue[q].age += dt;
+      if(!S.queue[q].stale && S.queue[q].age > STALE_T){
+        S.queue[q].stale = true; S.staleCount++;
+      }
+    }
+
+    // prune rolling windows
+    var cut = S.t - 5;
+    while(S.resolvedStamps.length && S.resolvedStamps[0] < cut) S.resolvedStamps.shift();
+    var fcut = S.t - 4;
+    while(S.recentFails.length && S.recentFails[0] < fcut) S.recentFails.shift();
+
+    // reveal toast once the earned line has clearly drifted right of start
+    if(!S.shownToast && S.c > 0.52 && S.t > 8){
+      S.shownToast = true; showToast();
+    }
+  }
+
+  // ---------- draw ----------
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    // belt
+    var by = beltY();
+    ctx.strokeStyle = 'rgba(120,150,200,.10)';
+    ctx.lineWidth = 1;
+    for(var gx=W; gx>0; gx-=46){
+      var off = (S.t*((W)/BELT_T)) % 46;
+      var x = gx - off;
+      ctx.beginPath(); ctx.moveTo(x, by-24); ctx.lineTo(x, by+24); ctx.stroke();
+    }
+    // belt edges
+    ctx.strokeStyle='rgba(120,150,200,.18)';
+    ctx.beginPath(); ctx.moveTo(0,by-26); ctx.lineTo(W,by-26);
+    ctx.moveTo(0,by+26); ctx.lineTo(W,by+26); ctx.stroke();
+
+    // decision line
+    var dX = decisionX();
+    ctx.strokeStyle='rgba(201,169,255,.35)'; ctx.setLineDash([4,5]); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(dX,10); ctx.lineTo(dX,by+40); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(201,169,255,.55)'; ctx.font='10px -apple-system,sans-serif';
+    ctx.textAlign='center'; ctx.fillText('decision', dX, by+54);
+
+    // "the world" label at far left
+    ctx.fillStyle='rgba(255,107,107,.30)'; ctx.textAlign='left';
+    ctx.fillText('→ the world', 6, 16);
+
+    // inbox tray
+    var iy = inboxY();
+    ctx.fillStyle='rgba(242,193,78,.09)';
+    roundRect(ctx, 8, iy-4, W-16, H-iy+2, 8); ctx.fill();
+    ctx.fillStyle='rgba(242,193,78,.65)'; ctx.textAlign='left'; ctx.font='10px -apple-system,sans-serif';
+    ctx.fillText('your inbox', 14, iy+12);
+    // queue squares
+    var n = Math.min(S.queue.length, MAX_INBOX_DRAW);
+    for(var k=0;k<n;k++){
+      var qx = W - 20 - k*13;
+      if(qx < 92) break;
+      var it = S.queue[k];
+      ctx.fillStyle = it.stale ? 'rgba(255,107,107,.85)' : 'rgba(242,193,78,.85)';
+      roundRect(ctx, qx, iy+2, 9, 12, 2); ctx.fill();
+    }
+
+    // tasks
+    for(var i=0;i<S.tasks.length;i++){
+      var tk = S.tasks[i];
+      var col, rad=6;
+      if(tk.phase==='belt'){
+        // colour hints at risk: low=teal-ish, high=amber-ish, neutral base
+        var g = Math.round(120 + tk.r*90);
+        col = 'rgba('+g+','+(190-Math.round(tk.r*70))+',150,.9)';
+      } else if(tk.phase==='act'){
+        if(tk.result==='ok'){ col='rgba(90,209,160,.95)'; }
+        else { col='rgba(255,107,107,.95)'; rad=6.5; }
+      } else {
+        col='rgba(242,193,78,.95)';
+      }
+      // flash ring on resolve
+      if(tk.phase==='act' && tk.result==='ok' && tk.flash>0){
+        ctx.strokeStyle='rgba(90,209,160,'+(0.5*(1-tk.flash/0.5))+')';
+        ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(tk.x,tk.y, 8+tk.flash*22, 0, Math.PI*2); ctx.stroke();
+      }
+      ctx.fillStyle=col;
+      ctx.beginPath(); ctx.arc(tk.x, tk.y, rad, 0, Math.PI*2); ctx.fill();
+      if(tk.phase==='act' && tk.result==='fail'){
+        ctx.fillStyle='rgba(255,255,255,.9)'; ctx.font='bold 8px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('!', tk.x, tk.y+3);
+      }
+    }
+
+    // autonomy gate marker on the belt (where the current threshold sits, visualised as a gate height)
+  }
+
+  function roundRect(c,x,y,w,h,r){
+    if(w<0){x+=w;w=-w;} if(h<0){y+=h;h=-h;}
+    r=Math.min(r,w/2,h/2);
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  }
+
+  // ---------- HUD ----------
+  var elThr=document.getElementById('mThr'), elDef=document.getElementById('mDef'),
+      elInbox=document.getElementById('mInbox'), elStale=document.getElementById('mStale'),
+      elTrust=document.getElementById('mTrust'),
+      elA=document.getElementById('aVal'), elC=document.getElementById('cVal'),
+      ghost=document.getElementById('ghost'), fillsafe=document.getElementById('fillsafe'),
+      vFace=document.getElementById('vFace'), vTxt=document.getElementById('vTxt');
+
+  function hud(){
+    var perMin = Math.round((S.resolvedStamps.length/5)*60);
+    elThr.textContent = perMin;
+    elDef.textContent = S.defects;
+    elInbox.textContent = S.queue.length;
+    elStale.textContent = S.staleCount>0 ? ('· '+S.staleCount+' stale') : '';
+    elTrust.textContent = Math.round(S.c*100);
+    elA.textContent = Math.round(S.A*100)+'%';
+    elC.textContent = Math.round(S.c*100)+'%';
+    ghost.style.left = (S.c*100)+'%';
+    fillsafe.style.width = (S.A*100)+'%';
+    verdict();
+  }
+
+  // ---------- verdict (Natt) ----------
+  var LINES = {
+    idle:{f:'🌙', t:'Press <b>Start</b>. Tasks will begin to flow in from the right.'},
+    bottleneck:{f:'📥', t:'Your inbox is the bottleneck. You\u2019re personally reviewing work Nikola could do in her sleep \u2014 and the pile is winning. <span>Nudge the dial right, up toward the glowing line.</span>'},
+    drift:{f:'🌱', t:'She\u2019s outgrown you. The earned line has slid well past where you set the dial, so she keeps knocking about things she\u2019s clearly ready for. <span>Trust her a little more.</span>'},
+    reckless:{f:'💥', t:'You\u2019ve handed Nikola the sharp knives before she\u2019s earned them. That red streak leaving on the left? Those are mistakes landing out in the real world. <span>Ease the dial back toward the line.</span>'},
+    over:{f:'⚠️', t:'A touch eager. A few tasks are slipping past her competence and escaping. Not a crisis \u2014 but you\u2019re standing just right of the safe line.'},
+    under:{f:'🐌', t:'Cautious. Nikola\u2019s asking about things she\u2019d likely nail, so your inbox does more work than it needs to. A little room to trust her more.'},
+    balanced:{f:'🎯', t:'Balanced. Nikola self-serves the easy majority and only knocks when it genuinely matters. Watch the glowing line, though \u2014 it keeps drifting right, and you\u2019ll have to follow it.'},
+    tuning:{f:'🤝', t:'She\u2019s tuning herself now \u2014 the dial rides the line she\u2019s earned. This is the whole idea: trust re-granted continuously, not set once and forgotten.'}
+  };
+
+  function verdict(){
+    var b;
+    if(!S.running && S.t===0){ b='idle'; }
+    else if(S.follow){ b='tuning'; }
+    else {
+      var gap = S.A - S.c;
+      var failRate = S.recentFails.length; // fails in last 4s
+      var q = S.queue.length;
+      if(gap < -0.10 && S.c > 0.55 && q > 6){ b='drift'; }
+      else if(q > 9 && gap < -0.02){ b='bottleneck'; }
+      else if(gap > 0.16 && failRate >= 3){ b='reckless'; }
+      else if(gap > 0.08){ b='over'; }
+      else if(gap < -0.06){ b='under'; }
+      else { b='balanced'; }
+    }
+    if(b !== S.bucket){
+      S.bucket = b;
+      vFace.textContent = LINES[b].f;
+      vTxt.innerHTML = LINES[b].t;
+    }
+  }
+
+  // ---------- toast ----------
+  function showToast(){
+    var t=document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 7200);
+  }
+
+  // ---------- loop ----------
+  var last=0;
+  function frame(ts){
+    if(!last) last=ts;
+    var dt=(ts-last)/1000; last=ts;
+    if(dt>0.05) dt=0.05; // clamp on tab-switch
+    if(S.running) update(dt);
+    draw();
+    hud();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- controls ----------
+  var slider=document.getElementById('slider');
+  slider.addEventListener('input', function(){
+    if(S.follow) return;
+    S.A = slider.value/100;
+  });
+  var btnStart=document.getElementById('btnStart');
+  btnStart.addEventListener('click', function(){
+    S.running=!S.running;
+    btnStart.textContent = S.running ? '❚❚ Pause' : '▶ Resume';
+    if(S.running && S.bucket==='idle') S.bucket=null;
+  });
+  document.getElementById('btnReset').addEventListener('click', function(){
+    var follow = S.follow;
+    S = fresh(); S.follow=follow;
+    slider.value=40; slider.disabled=follow;
+    btnStart.textContent='▶ Start';
+    resize();
+  });
+  document.getElementById('chkFollow').addEventListener('change', function(e){
+    S.follow = e.target.checked;
+    slider.disabled = S.follow;
+  });
+
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
