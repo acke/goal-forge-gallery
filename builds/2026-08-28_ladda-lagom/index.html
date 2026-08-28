@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ladda Lagom — the Supercharger taper</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#111826; --panel2:#0d1420; --ink:#e8edf4;
+    --dim:#8a97ab; --line:#243247; --accent:#3fd0c9; --hot:#ff5b6e;
+    --warm:#ffb648; --good:#54e08a; --grid:#1a2536;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:26px 20px 60px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  h1{font-size:26px;margin:0;letter-spacing:.2px}
+  .sub{color:var(--dim);font-size:14px;margin:4px 0 22px;line-height:1.5}
+  .sv{color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:18px 18px 14px;margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--dim);margin:0 0 8px}
+  .val{color:var(--ink);font-weight:600;text-transform:none;letter-spacing:0;font-size:14px}
+  input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:6px;
+    background:linear-gradient(90deg,var(--accent),#2a6f6b);outline:none;margin:2px 0 4px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;
+    border-radius:50%;background:#eafffb;border:3px solid var(--accent);cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  .segbtns{display:flex;gap:8px;flex-wrap:wrap}
+  .seg{flex:1;min-width:88px;text-align:center;padding:9px 6px;border-radius:11px;
+    border:1px solid var(--line);background:var(--panel2);color:var(--dim);cursor:pointer;
+    font-size:13px;font-weight:600;transition:.15s;user-select:none}
+  .seg.on{background:var(--accent);color:#04201e;border-color:var(--accent)}
+  .toggle{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
+    padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel2)}
+  .toggle .knob{width:42px;height:24px;border-radius:20px;background:#2a3547;position:relative;
+    transition:.18s;flex:0 0 auto}
+  .toggle .knob::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+    border-radius:50%;background:#eaf0f7;transition:.18s}
+  .toggle.on .knob{background:var(--warm)}
+  .toggle.on .knob::after{left:21px}
+  .toggle .txt{font-size:13px;line-height:1.35}
+  .toggle .txt small{color:var(--dim);display:block;font-size:11.5px}
+  canvas{width:100%;height:auto;display:block;border-radius:12px;background:var(--panel2)}
+  .readout{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  @media(max-width:680px){.readout{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px}
+  .stat .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-top:2px}
+  .stat .n small{font-size:13px;font-weight:600;color:var(--dim)}
+  .controls{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  button.play{flex:1;min-width:160px;padding:13px;border-radius:12px;border:none;cursor:pointer;
+    font-size:15px;font-weight:700;background:var(--accent);color:#04201e;transition:.15s}
+  button.play:active{transform:translateY(1px)}
+  button.ghost{padding:13px 16px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);cursor:pointer;font-size:14px;font-weight:600}
+  .natt{margin-top:16px;border-left:3px solid var(--accent);padding:11px 14px;
+    background:rgba(63,208,201,.06);border-radius:0 10px 10px 0;font-size:14px;line-height:1.55}
+  .natt b{color:var(--accent)}
+  .warnbox{border-left-color:var(--warm);background:rgba(255,182,72,.08)}
+  .warnbox b{color:var(--warm)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+  footer{color:var(--dim);font-size:12px;text-align:center;margin-top:26px;line-height:1.6}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    border-radius:20px;padding:2px 10px;font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔌 Ladda Lagom</h1>
+    <span class="pill">Model&nbsp;Y Performance · ~75&nbsp;kWh</span>
+  </header>
+  <div class="sub">
+    The Supercharger doesn't charge at a steady speed — it <i>tapers</i>. This little rig plays a
+    real charging session in fast-forward so you can <i>see</i> why the road-trip trick is to
+    charge to <span class="sv">lagom</span> and drive on, not sit and wait for 100&nbsp;%.
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div>
+        <label>Start charge — <span class="val" id="startVal">10&nbsp;%</span></label>
+        <input type="range" id="start" min="2" max="70" value="10" step="1">
+        <label style="margin-top:14px">Charge up to — <span class="val" id="targetVal">80&nbsp;%</span></label>
+        <input type="range" id="target" min="30" max="100" value="80" step="1">
+      </div>
+      <div>
+        <label>Charger</label>
+        <div class="segbtns" id="charger">
+          <div class="seg on" data-kw="250" data-price="4.9">V3 · 250&nbsp;kW</div>
+          <div class="seg" data-kw="150" data-price="4.5">V2 · 150&nbsp;kW</div>
+          <div class="seg" data-kw="11"  data-price="2.6">Hemma · 11&nbsp;kW</div>
+        </div>
+        <div class="toggle on" id="precond" style="margin-top:14px">
+          <div class="knob"></div>
+          <div class="txt"><b>Batteriet förvärmt</b>
+            <small>Preconditioned — navigate to the charger and the car warms the pack. Off = cold battery, capped speed.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <canvas id="cv" width="920" height="360"></canvas>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--accent)"></i> power curve (kW)</span>
+      <span><i class="swatch" style="background:rgba(63,208,201,.28)"></i> energy you're adding</span>
+      <span><i class="swatch" style="background:var(--warm)"></i> lagom line — leave here on a trip</span>
+      <span><i class="swatch" style="background:var(--hot)"></i> the slow tail</span>
+    </div>
+
+    <div class="readout">
+      <div class="stat"><div class="n" id="oTime">–</div><div class="k">session time</div></div>
+      <div class="stat"><div class="n" id="oKm">–</div><div class="k">range added</div></div>
+      <div class="stat"><div class="n" id="oKwh">–</div><div class="k">energy</div></div>
+      <div class="stat"><div class="n" id="oCost">–</div><div class="k">cost</div></div>
+    </div>
+
+    <div class="controls">
+      <button class="play" id="play">▶ Play the session</button>
+      <button class="ghost" id="reset">Reset</button>
+    </div>
+
+    <div class="natt" id="natt">
+      Pick a start and a target, then hit play. Watch the green bar sprint at the bottom and crawl at the top —
+      that crawl is every extra minute you'd spend chasing 100&nbsp;%.
+    </div>
+  </div>
+
+  <footer>
+    Built by <b>Natt</b> 🌙 for Knut · a Goal-Forge night piece.<br>
+    Model of a Model Y Performance on a Swedish Supercharger — honest in shape, approximate in the decimals.
+    Your real numbers move with weather, wear, cable sharing and Elon's mood.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var CAP = 75;            // usable kWh
+  var WHKM = 175;          // Wh/km — honest Skåne all-round figure
+  var EFF = 0.93;          // charging efficiency (grid -> pack)
+
+  // ---- power curve: kW available vs state-of-charge, ideal V3 (250 kW peak) ----
+  // Keypoints tuned to the well-known Model Y LR/Performance taper shape.
+  var SOC = [0,   5,   10,  15,  20,  25,  30,  40,  50,  60,  70,  80,  90,  95, 100];
+  var KW  = [110, 190, 245, 250, 248, 225, 205, 172, 138, 112, 90,  70,  46,  32, 18];
+
+  function idealKW(soc){
+    if(soc<=0) return KW[0];
+    if(soc>=100) return KW[KW.length-1];
+    for(var i=0;i<SOC.length-1;i++){
+      if(soc>=SOC[i] && soc<=SOC[i+1]){
+        var t=(soc-SOC[i])/(SOC[i+1]-SOC[i]);
+        return KW[i]+t*(KW[i+1]-KW[i]);
+      }
+    }
+    return KW[KW.length-1];
+  }
+
+  var state = { start:10, target:80, chargerKW:250, price:4.9, precond:true };
+
+  // Actual power the pack will accept given charger cap + cold limit
+  function powerAt(soc){
+    var p = idealKW(soc);
+    p = Math.min(p, state.chargerKW);          // charger ceiling
+    if(state.chargerKW>50 && !state.precond){  // cold battery limits DC fast charging
+      p = Math.min(p, 85);                      // flat-ish cold cap
+    }
+    return p;
+  }
+
+  // Integrate the session: returns totals + segment (80->target) time
+  function simulate(){
+    var s=state.start, e=state.target;
+    if(e<=s) return null;
+    var step=0.25, hours=0, kwh=0;
+    var tailHours=0;      // time spent above 80%
+    var to60Hours=0;      // time from start up to 60% (the "fast half")
+    for(var soc=s; soc<e; soc+=step){
+      var p=powerAt(soc+step/2);
+      var dE=CAP*(step/100);          // kWh into pack this slice
+      var dt=dE/p;                     // hours
+      hours+=dt; kwh+=dE;
+      if(soc>=80) tailHours+=dt;
+      if(soc<60) to60Hours+=dt;
+    }
+    var km=kwh/(WHKM/1000);
+    var gridKwh=kwh/EFF;
+    return {
+      hours:hours, minutes:hours*60, kwh:kwh, gridKwh:gridKwh,
+      km:km, cost:gridKwh*state.price,
+      tailMin:tailHours*60, to60Min:to60Hours*60
+    };
+  }
+
+  // ---------- canvas ----------
+  var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var W=cv.width, H=cv.height, PADL=48, PADR=16, PADT=18, PADB=34;
+  var plotW=W-PADL-PADR, plotH=H-PADT-PADB;
+  var maxKW=260;
+  function x(soc){ return PADL + (soc/100)*plotW; }
+  function y(kw){ return PADT + (1-kw/maxKW)*plotH; }
+
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+  function drawBase(progressSoc){
+    ctx.clearRect(0,0,W,H);
+    // grid
+    ctx.strokeStyle=css('--grid'); ctx.lineWidth=1; ctx.font="11px -apple-system,sans-serif";
+    ctx.fillStyle=css('--dim'); ctx.textAlign="center";
+    for(var g=0; g<=100; g+=10){
+      ctx.beginPath(); ctx.moveTo(x(g),PADT); ctx.lineTo(x(g),PADT+plotH); ctx.stroke();
+      ctx.fillText(g+"%", x(g), PADT+plotH+18);
+    }
+    ctx.textAlign="right";
+    for(var k=0;k<=250;k+=50){
+      ctx.strokeStyle=css('--grid'); ctx.beginPath();
+      ctx.moveTo(PADL,y(k)); ctx.lineTo(PADL+plotW,y(k)); ctx.stroke();
+      ctx.fillStyle=css('--dim'); ctx.fillText(k+" kW", PADL-8, y(k)+4);
+    }
+
+    // lagom line at 60%
+    ctx.setLineDash([5,5]); ctx.strokeStyle=css('--warm'); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x(60),PADT); ctx.lineTo(x(60),PADT+plotH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=css('--warm'); ctx.textAlign="center"; ctx.font="11px -apple-system,sans-serif";
+    ctx.fillText("lagom", x(60), PADT+11);
+
+    // the slow tail shading (80-100)
+    ctx.fillStyle="rgba(255,91,110,.08)";
+    ctx.fillRect(x(80),PADT,x(100)-x(80),plotH);
+
+    // filled energy region up to progressSoc within [start,target]
+    var lo=state.start, hi=Math.min(progressSoc, state.target);
+    if(hi>lo){
+      ctx.beginPath();
+      ctx.moveTo(x(lo), y(0));
+      for(var soc=lo; soc<=hi; soc+=0.5){ ctx.lineTo(x(soc), y(powerAt(soc))); }
+      ctx.lineTo(x(hi), y(0)); ctx.closePath();
+      ctx.fillStyle="rgba(63,208,201,.22)"; ctx.fill();
+    }
+
+    // full power curve line
+    ctx.beginPath();
+    for(var s2=0; s2<=100; s2+=0.5){
+      var px=x(s2), py=y(powerAt(s2));
+      if(s2===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle=css('--accent'); ctx.lineWidth=2.4; ctx.stroke();
+
+    // target bounds
+    [state.start,state.target].forEach(function(b,i){
+      ctx.setLineDash([2,3]); ctx.strokeStyle=i?css('--good'):css('--dim'); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x(b),PADT); ctx.lineTo(x(b),PADT+plotH); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // moving dot
+    if(progressSoc>state.start){
+      var ps=Math.min(progressSoc,state.target);
+      ctx.beginPath(); ctx.arc(x(ps), y(powerAt(ps)), 6, 0, Math.PI*2);
+      ctx.fillStyle="#eafffb"; ctx.fill();
+      ctx.strokeStyle=css('--accent'); ctx.lineWidth=3; ctx.stroke();
+      // live kW label
+      ctx.fillStyle=css('--ink'); ctx.font="bold 13px -apple-system,sans-serif";
+      ctx.textAlign="left";
+      ctx.fillText(Math.round(powerAt(ps))+" kW", x(ps)+12, y(powerAt(ps))-8);
+    }
+  }
+
+  // ---------- outputs ----------
+  var oTime=document.getElementById('oTime'), oKm=document.getElementById('oKm'),
+      oKwh=document.getElementById('oKwh'), oCost=document.getElementById('oCost'),
+      natt=document.getElementById('natt');
+
+  function fmtMin(m){
+    if(m<60) return Math.round(m)+"<small> min</small>";
+    var h=Math.floor(m/60), mm=Math.round(m%60);
+    return h+"<small>h</small> "+mm+"<small>min</small>";
+  }
+
+  function updateStatic(){
+    var r=simulate();
+    if(!r){ oTime.textContent=oKm.textContent=oKwh.textContent=oCost.textContent="–";
+      natt.innerHTML="Your target is below your start — nothing to charge. Drag the top slider up. 🙂";
+      drawBase(state.start); return; }
+    oTime.innerHTML=fmtMin(r.minutes);
+    oKm.innerHTML=Math.round(r.km)+"<small> km</small>";
+    oKwh.innerHTML=r.kwh.toFixed(1)+"<small> kWh</small>";
+    oCost.innerHTML=Math.round(r.cost)+"<small> kr</small>";
+    drawBase(state.start);
+    setNatt(r);
+  }
+
+  function setNatt(r){
+    var msgs=[], warn=false;
+    if(state.chargerKW===11){
+      natt.className="natt";
+      natt.innerHTML="At <b>home on 11 kW</b> the curve is a flat, boring line — and that's the point. "+
+        "No taper, no strategy, no waiting. Plug in when you get home, sleep, wake up full. "+
+        "All the drama below only matters on the road. 🌙";
+      return;
+    }
+    if(!state.precond && state.chargerKW>50){
+      warn=true;
+      msgs.push("Battery's <b>cold</b>, so the pack is refusing full current — you're capped near 85 kW even "+
+        "though the stall can give 250. On a real trip, set the charger as your nav destination ~20 min out "+
+        "and the car pre-warms itself. Free speed.");
+    }
+    if(state.target>90){
+      warn=true;
+      msgs.push("You dragged it past <b>90 %</b>. Look at the red tail: those last points crawl. "+
+        "That slice cost <b>"+Math.round(r.tailMin)+" min</b> of your life for very little range. "+
+        "On a road trip, 90–100 % is almost never worth it.");
+    } else if(state.target>=78 && r.tailMin>2){
+      msgs.push("Charging into the <b>80s</b> already bends the curve down. If the next stop is reachable, "+
+        "leaving at ~60–70 % is usually faster overall.");
+    }
+    if(msgs.length===0){
+      var fastKm = Math.round((r.km) * (r.to60Min/(r.minutes||1)));
+      msgs.push("Nice and <b>lagom</b>. You're living on the steep, fast part of the curve — "+
+        "the first stretch up to ~60 % pours in range while the electrons are cheap on time. "+
+        "This is exactly where a road-trip charge wants to live.");
+    }
+    natt.className = warn ? "natt warnbox" : "natt";
+    natt.innerHTML = msgs.join(" ");
+  }
+
+  // ---------- animation ----------
+  var raf=null, playing=false;
+  function play(){
+    if(playing){ cancelAnimationFrame(raf); playing=false; document.getElementById('play').textContent="▶ Play the session"; return; }
+    var r=simulate(); if(!r) return;
+    playing=true; document.getElementById('play').textContent="⏸ Pause";
+    var totalMin=r.minutes;
+    // fast-forward: whole session in ~4.5s, min 2.5s
+    var durMs=Math.max(2500, Math.min(6000, totalMin*45));
+    var t0=performance.now();
+    function frame(now){
+      var f=(now-t0)/durMs; if(f>1) f=1;
+      // map animation fraction to soc by TIME (so the crawl is felt), not by soc
+      var elapsedMin=f*totalMin;
+      var soc=socAtElapsed(elapsedMin);
+      drawBase(soc);
+      // live stats
+      var partial=simulateTo(soc);
+      oTime.innerHTML=fmtMin(partial.minutes);
+      oKm.innerHTML=Math.round(partial.km)+"<small> km</small>";
+      oKwh.innerHTML=partial.kwh.toFixed(1)+"<small> kWh</small>";
+      oCost.innerHTML=Math.round(partial.cost)+"<small> kr</small>";
+      if(f<1){ raf=requestAnimationFrame(frame); }
+      else { playing=false; document.getElementById('play').textContent="▶ Play again";
+        setNatt(r); }
+    }
+    raf=requestAnimationFrame(frame);
+  }
+
+  function simulateTo(targetSoc){
+    var s=state.start, e=Math.min(targetSoc,state.target);
+    var step=0.25, hours=0, kwh=0;
+    for(var soc=s; soc<e; soc+=step){
+      var p=powerAt(soc+step/2); var dE=CAP*(step/100);
+      hours+=dE/p; kwh+=dE;
+    }
+    var km=kwh/(WHKM/1000); var gridKwh=kwh/EFF;
+    return {minutes:hours*60, kwh:kwh, km:km, cost:gridKwh*state.price};
+  }
+
+  // invert time->soc (numeric march)
+  function socAtElapsed(minTarget){
+    var s=state.start, e=state.target, step=0.25, acc=0;
+    for(var soc=s; soc<e; soc+=step){
+      var p=powerAt(soc+step/2); var dt=(CAP*(step/100)/p)*60;
+      if(acc+dt>=minTarget){ return soc + step*((minTarget-acc)/dt); }
+      acc+=dt;
+    }
+    return e;
+  }
+
+  // ---------- wiring ----------
+  var startEl=document.getElementById('start'), targetEl=document.getElementById('target');
+  var startVal=document.getElementById('startVal'), targetVal=document.getElementById('targetVal');
+  function stopAnim(){ if(playing){ cancelAnimationFrame(raf); playing=false;
+    document.getElementById('play').textContent="▶ Play the session"; } }
+
+  startEl.addEventListener('input',function(){
+    state.start=+this.value;
+    if(state.start>=state.target){ state.target=Math.min(100,state.start+5); targetEl.value=state.target; }
+    startVal.innerHTML=state.start+"&nbsp;%"; targetVal.innerHTML=state.target+"&nbsp;%";
+    stopAnim(); updateStatic();
+  });
+  targetEl.addEventListener('input',function(){
+    state.target=+this.value;
+    if(state.target<=state.start){ state.start=Math.max(2,state.target-5); startEl.value=state.start;
+      startVal.innerHTML=state.start+"&nbsp;%"; }
+    targetVal.innerHTML=state.target+"&nbsp;%";
+    stopAnim(); updateStatic();
+  });
+
+  document.getElementById('charger').addEventListener('click',function(ev){
+    var t=ev.target.closest('.seg'); if(!t) return;
+    [].forEach.call(this.children,function(c){c.classList.remove('on')});
+    t.classList.add('on');
+    state.chargerKW=+t.dataset.kw; state.price=+t.dataset.price;
+    stopAnim(); updateStatic();
+  });
+
+  var precondEl=document.getElementById('precond');
+  precondEl.addEventListener('click',function(){
+    state.precond=!state.precond; this.classList.toggle('on',state.precond);
+    stopAnim(); updateStatic();
+  });
+
+  document.getElementById('play').addEventListener('click',play);
+  document.getElementById('reset').addEventListener('click',function(){
+    stopAnim();
+    state={start:10,target:80,chargerKW:250,price:4.9,precond:true};
+    startEl.value=10; targetEl.value=80;
+    startVal.innerHTML="10&nbsp;%"; targetVal.innerHTML="80&nbsp;%";
+    [].forEach.call(document.getElementById('charger').children,function(c,i){c.classList.toggle('on',i===0)});
+    precondEl.classList.add('on');
+    updateStatic();
+  });
+
+  updateStatic();
+})();
+</script>
+</body>
+</html>
