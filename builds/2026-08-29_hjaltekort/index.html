@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hjältekort — familjens superkrafter</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b30; --ink:#eef2ff; --muted:#9aa6c7;
+    --line:#26314f; --accent:#8ab4ff; --gold:#ffd479;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1a2445 0%, transparent 60%),
+      radial-gradient(900px 500px at -10% 20%, #172038 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh; padding:26px 16px 70px;
+  }
+  .wrap{max-width:1080px; margin:0 auto}
+  header{text-align:center; margin-bottom:20px}
+  h1{font-size:clamp(26px,5vw,40px); margin:0 0 6px; letter-spacing:.3px}
+  h1 .m{filter:drop-shadow(0 0 10px #ffe9a855)}
+  .sub{color:var(--muted); font-size:15px; max-width:620px; margin:0 auto; line-height:1.5}
+  .roster{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:14px 16px; margin:18px auto 22px; max-width:760px;
+    box-shadow:0 12px 30px #0006;
+  }
+  .roster-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .roster input{
+    flex:1 1 200px; min-width:140px; background:#0d1424; color:var(--ink);
+    border:1px solid var(--line); border-radius:10px; padding:11px 13px; font-size:15px;
+  }
+  .roster input:focus{outline:none; border-color:var(--accent)}
+  button{
+    font:inherit; cursor:pointer; border-radius:10px; border:1px solid var(--line);
+    background:#1d2846; color:var(--ink); padding:11px 15px; font-size:15px;
+    transition:transform .06s ease, background .15s ease;
+  }
+  button:hover{background:#26335a}
+  button:active{transform:translateY(1px)}
+  .btn-go{background:linear-gradient(135deg,#3b63c9,#6a8cff); border-color:#6a8cff; font-weight:600}
+  .chips{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px}
+  .chip{
+    display:inline-flex; align-items:center; gap:7px; background:#0d1424;
+    border:1px solid var(--line); border-radius:999px; padding:5px 6px 5px 12px; font-size:14px;
+  }
+  .chip button{padding:2px 8px; font-size:13px; border-radius:999px; background:#2a2036; border-color:#3a2c4a}
+  .hint{color:var(--muted); font-size:13px; margin-top:10px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:18px}
+
+  /* ---- card ---- */
+  .card{perspective:1200px; height:430px}
+  .flip{position:relative; width:100%; height:100%; transition:transform .6s cubic-bezier(.2,.7,.2,1); transform-style:preserve-3d; cursor:pointer}
+  .card.turned .flip{transform:rotateY(180deg)}
+  .face{
+    position:absolute; inset:0; backface-visibility:hidden; border-radius:18px;
+    border:1px solid var(--line); overflow:hidden; display:flex; flex-direction:column;
+    box-shadow:0 16px 34px #0007;
+  }
+  .front{background:linear-gradient(180deg,#141b30,#0d1424)}
+  .banner{height:118px; position:relative; display:flex; align-items:flex-end; padding:12px}
+  .banner .lvl{
+    position:absolute; top:10px; right:12px; background:#0009; border:1px solid #fff3;
+    border-radius:10px; padding:4px 9px; font-size:12px; font-weight:700; letter-spacing:.4px;
+  }
+  .portrait{
+    width:78px; height:78px; border-radius:16px; display:grid; place-items:center;
+    font-size:38px; font-weight:800; color:#fff; box-shadow:0 6px 14px #0007, inset 0 0 0 2px #ffffff33;
+    position:relative;
+  }
+  .portrait .el{position:absolute; bottom:-6px; right:-6px; font-size:22px; filter:drop-shadow(0 2px 3px #0009)}
+  .namebox{padding-left:12px; padding-bottom:2px}
+  .alias{font-size:19px; font-weight:800; line-height:1.05; text-shadow:0 2px 6px #0008}
+  .realname{font-size:12.5px; color:#e9eefc; opacity:.9; text-shadow:0 1px 3px #0009}
+  .body{padding:12px 14px 14px; display:flex; flex-direction:column; gap:9px; flex:1}
+  .stat{display:flex; align-items:center; gap:8px; font-size:12px}
+  .stat .lab{width:88px; color:var(--muted)}
+  .bar{flex:1; height:8px; background:#0d1424; border-radius:6px; overflow:hidden; border:1px solid var(--line)}
+  .bar i{display:block; height:100%; border-radius:6px}
+  .fact{font-size:12.5px; line-height:1.35}
+  .fact b{color:var(--gold); font-weight:700}
+  .catch{margin-top:auto; font-style:italic; font-size:13px; color:#cdd7f4; border-left:2px solid var(--accent); padding-left:9px}
+  .flip-hint{position:absolute; bottom:8px; right:12px; font-size:10.5px; color:var(--muted); opacity:.8}
+
+  .back{background:linear-gradient(180deg,#0f1730,#0b1120); transform:rotateY(180deg); padding:16px; justify-content:flex-start}
+  .back h3{margin:2px 0 8px; font-size:15px; color:var(--gold)}
+  .origin{font-size:13px; line-height:1.5; color:#dbe3fb}
+  .kv{margin-top:12px; display:grid; gap:6px}
+  .kv div{font-size:12.5px; color:#c5d0ee}
+  .kv span{color:var(--muted)}
+  .power-mv{margin-top:12px; background:#131c34; border:1px solid var(--line); border-radius:12px; padding:10px}
+  .power-mv .t{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px}
+  .power-mv .n{font-size:16px; font-weight:800; color:#fff; margin-top:2px}
+
+  /* ---- team-ups ---- */
+  .section{margin-top:34px}
+  .section h2{font-size:20px; margin:0 0 4px}
+  .section .lead{color:var(--muted); font-size:14px; margin:0 0 14px}
+  .team-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px}
+  .team{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:13px 15px}
+  .team .who{font-size:12.5px; color:var(--muted); margin-bottom:4px}
+  .team .move{font-size:16px; font-weight:800; color:#ffe6a8}
+  .team .desc{font-size:12.5px; color:#c8d2ef; margin-top:5px; line-height:1.4}
+
+  .ultimate{
+    margin-top:30px; border-radius:18px; padding:20px 22px; text-align:center;
+    background:linear-gradient(135deg,#2a1c3f,#3b2450 55%,#1c2547);
+    border:1px solid #6b4fa0; box-shadow:0 18px 40px #0008, inset 0 0 40px #ffd47922;
+  }
+  .ultimate.locked{background:#141b30; border-color:var(--line); box-shadow:none}
+  .ultimate .cap{font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--gold)}
+  .ultimate .cap.dim{color:var(--muted)}
+  .ultimate .big{font-size:clamp(22px,4vw,32px); font-weight:900; margin:8px 0 6px; text-shadow:0 3px 14px #000a}
+  .ultimate .flavor{color:#dcd2f2; font-size:14px; max-width:640px; margin:0 auto; line-height:1.5}
+  .meter{height:12px; background:#0009; border-radius:8px; overflow:hidden; margin:14px auto 4px; max-width:420px; border:1px solid #ffffff22}
+  .meter i{display:block; height:100%; background:linear-gradient(90deg,#ffb347,#ffd479,#a56bff); transition:width .5s ease}
+  .meter-lab{font-size:12px; color:var(--muted); margin-top:6px}
+
+  footer{text-align:center; color:var(--muted); font-size:12.5px; margin-top:40px; line-height:1.6}
+  .toolbar{display:flex; gap:8px; justify-content:center; margin-top:20px; flex-wrap:wrap}
+
+  @media print{
+    body{background:#fff; color:#111}
+    .roster,.toolbar,.flip-hint,footer .noprint{display:none !important}
+    .card{height:auto; break-inside:avoid}
+    .flip{transform:none !important; height:auto}
+    .back{display:none}
+    .front{position:relative; box-shadow:none; border:1.5px solid #333}
+    .alias,.realname{text-shadow:none; color:#111}
+    header .sub,.section .lead{color:#444}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="m">🌙</span> Hjältekort</h1>
+    <p class="sub">Alla i familjen är i hemlighet superhjältar. Den här maskinen räknar bara ut <em>vilka</em>. Skriv ett namn så får det sitt kort — samma namn ger alltid samma hjälte, så kortet blir <b>ditt</b>. Klicka på ett kort för att vända det.</p>
+  </header>
+
+  <div class="roster">
+    <div class="roster-row">
+      <input id="nameInput" type="text" placeholder="Skriv ett namn…" maxlength="18" autocomplete="off">
+      <button class="btn-go" id="addBtn">Kalla fram hjälten</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="hint">Familjen är redan framme. Lägg till kompisar, mor- och farföräldrar, eller din nemesis. (Sparas i den här webbläsaren.)</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="section" id="teamSection" style="display:none">
+    <h2>Lagkombos ⚡</h2>
+    <p class="lead">När två hjältar står bredvid varandra uppstår ett gemensamt drag. Ju fler hjältar, desto fler kombos.</p>
+    <div class="team-grid" id="teamGrid"></div>
+  </div>
+
+  <div class="ultimate locked" id="ultimate"></div>
+
+  <div class="toolbar">
+    <button id="printBtn">🖨️ Skriv ut korten</button>
+    <button id="resetBtn">↺ Återställ familjen</button>
+  </div>
+
+  <footer>
+    <div class="noprint">Byggd i natt av Natt 🌙 — helt offline, ingen data lämnar din dator.</div>
+    <div>Krafterna är hittepå. Modet är på riktigt.</div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ---------- deterministic hash ---------- */
+function fnv(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h,16777619); }
+  return h >>> 0;
+}
+function h(name, salt){ return fnv(name.toLowerCase().trim()+"|"+salt); }
+function pick(arr, name, salt){ return arr[ h(name,salt) % arr.length ]; }
+function stat(name, salt){ return 40 + (h(name,salt) % 60); } // 40..99
+
+/* ---------- flavour banks ---------- */
+const ELEMENTS = [
+  {name:"Nordljus",   emoji:"🌌", c1:"#4b7bec", c2:"#a55eea"},
+  {name:"Storm",      emoji:"⚡", c1:"#3867d6", c2:"#45aaf2"},
+  {name:"Glöd",       emoji:"🔥", c1:"#eb3b5a", c2:"#fa8231"},
+  {name:"Skog",       emoji:"🌲", c1:"#20bf6b", c2:"#0fb9b1"},
+  {name:"Frost",      emoji:"❄️", c1:"#2d98da", c2:"#a5b1c2"},
+  {name:"Guld",       emoji:"✨", c1:"#f7b731", c2:"#fed330"},
+  {name:"Skugga",     emoji:"🌑", c1:"#3d3d5c", c2:"#6c5ce7"},
+  {name:"Hav",        emoji:"🌊", c1:"#0a3d62", c2:"#3c6382"},
+  {name:"Måne",       emoji:"🌙", c1:"#575fcf", c2:"#ffd479"},
+  {name:"Kul",        emoji:"🎈", c1:"#f368e0", c2:"#ff9ff3"}
+];
+const ALIAS_ADJ = ["Ostoppbara","Vilda","Lysande","Tysta","Snabba","Modiga","Rasande","Gyllene","Eviga","Blixtsnabba","Orädda","Vänliga","Kosmiska","Elektriska","Envisa","Osynliga"];
+const ALIAS_NOUN = ["Kometen","Vargen","Draken","Blixten","Björnen","Stjärnan","Skölden","Falken","Vågen","Räven","Uttern","Fyren","Meteoren","Igelkotten","Örnen","Lodjuret"];
+const POWERS = [
+  "kan stanna tiden i exakt tre sekunder — precis lagom för en kram",
+  "hör vad katter tänker och vägrar berätta det",
+  "kan förvandla dålig stämning till pannkakor",
+  "springer så fort att måndagar aldrig hinner ikapp",
+  "kan laga vad som helst med tejp och envishet",
+  "lyser i mörkret så ingen behöver nattlampa",
+  "kan hoppa högre än taket men lovar att inte göra det inomhus",
+  "pratar alla språk i världen, inklusive hundska",
+  "kan göra vilken läxa som helst tråkig-omöjlig för monster men lätt för barn",
+  "andas under vatten och samlar de finaste stenarna",
+  "kan trolla fram en parkeringsplats var som helst",
+  "väcker folk med den perfekta doften av nybakat",
+  "kan bygga en koja av ingenting på under en minut",
+  "gör alla plåster osynliga och alla sår mindre läskiga",
+  "kan vika en pappersflygplan som flyger runt hela jorden",
+  "vet exakt var borttappade saker gömmer sig",
+  "kan skratta så smittsamt att hela rummet måste vara med"
+];
+const WEAKNESS = [
+  "kittling (helt försvarslös)",
+  "sista kladdkakebiten (kan inte motstå)",
+  "för många öppna flikar",
+  "att gå och lägga sig en söndagkväll",
+  "kalla tår på morgonen",
+  "en riktigt bra film som redan börjat",
+  "att sätta ihop platta möbler",
+  "väckarklockan klockan sju",
+  "en valp som tittar snällt",
+  "det sista pusselbiten som saknas",
+  "regn precis när tvätten hänger ute",
+  "en oöppnad chipspåse i skafferiet"
+];
+const SIDEKICKS = [
+  {n:"en modig igelkott", e:"🦔"},
+  {n:"en talande korp",   e:"🐦‍⬛"},
+  {n:"en lat men lojal katt", e:"🐈"},
+  {n:"en pytteliten drake", e:"🐉"},
+  {n:"en robotdammsugare med attityd", e:"🤖"},
+  {n:"en osynlig hund",   e:"🐕"},
+  {n:"en klok uggla",     e:"🦉"},
+  {n:"en hoppig kanin",   e:"🐇"},
+  {n:"en lysande fjäril", e:"🦋"},
+  {n:"en envis liten räv",e:"🦊"},
+  {n:"en sömnig björnunge",e:"🐻"},
+  {n:"en snabb liten bläckfisk",e:"🐙"}
+];
+const CATCH = [
+  "”Inte idag, tråkighet.”",
+  "”Fika först. Rädda världen sen.”",
+  "”Jag räknar till tre. Ni vet vad som händer.”",
+  "”Håll i mössan.”",
+  "”Vi fixar det här. Tillsammans.”",
+  "”Långsamt är också en fart.”",
+  "”Ingen faller när jag håller i.”",
+  "”Ge mig tejp så flyttar jag berg.”",
+  "”Godnatt, monster. Ni förlorade igen.”",
+  "”Modig betyder rädd men går ändå.”",
+  "”Följ mysfaktorn.”",
+  "”Det ordnar sig. Det gör det alltid.”"
+];
+const STAT_DEFS = [
+  {key:"styr", lab:"Styrka",       c:"#eb3b5a"},
+  {key:"snab", lab:"Snabbhet",     c:"#45aaf2"},
+  {key:"mys",  lab:"Mysfaktor",    c:"#ffd479"},
+  {key:"pah",  lab:"Påhittighet",  c:"#20bf6b"}
+];
+/* origin bank */
+const OR_TID = ["en helt vanlig tisdag","en regnig höstkväll","mitt under frukosten","en snöig morgon","precis vid läggdags","under en långtråkig bilresa"];
+const OR_SAK = ["en gnistrande meteorit","en förtrollad kanelbulle","en blixt av rent trots","ett paket från framtiden","en droppe stjärnljus","en vilsen komet"];
+const OR_PLATS = ["skoskåp","matlåda","cykelkorg","fickan","kudde","ryggsäck"];
+const TEAM_NOUN = ["Kometvågen","Dubbelblixten","Stjärnstormen","Skyddsmuren","Nordljusknuten","Ekot","Virveln","Gnistregnet","Dundret","Solstrimman"];
+const TEAM_DESC = [
+  "träffar allt tråkigt samtidigt och lämnar bara skratt kvar.",
+  "bygger en osynlig sköld runt hela familjen i tre sekunder.",
+  "förvandlar vilken dålig dag som helst till en bra historia.",
+  "får till och med måndagar att be om ursäkt.",
+  "städar ett helt rum innan någon hinner säga 'nu'.",
+  "gör den läskigaste läxan lätt som en plätt.",
+  "lyser upp hela kvarteret och skrämmer bort alla monster."
+];
+
+/* ---------- state ---------- */
+const DEFAULT_ROSTER = ["Knut","Christy","Ayden","Theo","Victor"];
+let roster = loadRoster();
+
+function loadRoster(){
+  try{
+    const s = JSON.parse(localStorage.getItem("hjaltekort_roster_v1"));
+    if(Array.isArray(s) && s.length) return s.slice(0,12);
+  }catch(e){}
+  return DEFAULT_ROSTER.slice();
+}
+function saveRoster(){ try{ localStorage.setItem("hjaltekort_roster_v1", JSON.stringify(roster)); }catch(e){} }
+
+/* ---------- hero builder ---------- */
+function buildHero(name){
+  const el = pick(ELEMENTS, name, "el");
+  const adj = pick(ALIAS_ADJ, name, "adj");
+  const noun = pick(ALIAS_NOUN, name, "noun");
+  const stats = {};
+  STAT_DEFS.forEach(s => stats[s.key] = stat(name, s.key));
+  const total = Object.values(stats).reduce((a,b)=>a+b,0);
+  const lvl = Math.round(total/4);
+  const side = pick(SIDEKICKS, name, "side");
+  return {
+    name,
+    alias: "Den " + adj + " " + noun,
+    el, stats, lvl,
+    power: pick(POWERS, name, "pow"),
+    weakness: pick(WEAKNESS, name, "weak"),
+    side,
+    catch: pick(CATCH, name, "catch"),
+    origin: originStory(name, el, side),
+    moveName: pick(ALIAS_NOUN, name, "mv2") + "-" + pick(TEAM_NOUN, name, "mv")
+  };
+}
+function originStory(name, el, side){
+  const tid = pick(OR_TID, name, "otid");
+  const sak = pick(OR_SAK, name, "osak");
+  const plats = pick(OR_PLATS, name, "oplats");
+  return `Det började ${tid}. ${sak} föll från himlen och landade rakt i ${name}s ${plats}. ` +
+         `Sedan dess bär ${name} kraften av ${el.name.toLowerCase()} ${el.emoji} — och ${side.n} ${side.e} ` +
+         `dök upp samma vecka och vägrar gå hem.`;
+}
+function initials(name){
+  const parts = name.trim().split(/\s+/);
+  return (parts[0][0] + (parts[1]?parts[1][0]:"")).toUpperCase();
+}
+
+/* ---------- render ---------- */
+const grid = document.getElementById("grid");
+const chips = document.getElementById("chips");
+
+function render(){
+  grid.innerHTML = "";
+  roster.forEach(name => grid.appendChild(cardEl(buildHero(name))));
+  renderChips();
+  renderTeams();
+  renderUltimate();
+  saveRoster();
+}
+
+function bar(val,color){
+  return `<div class="bar"><i style="width:${val}%;background:${color}"></i></div>`;
+}
+function cardEl(hero){
+  const card = document.createElement("div");
+  card.className = "card";
+  const statsHtml = STAT_DEFS.map(s =>
+    `<div class="stat"><span class="lab">${s.lab}</span>${bar(hero.stats[s.key],s.c)}<span style="width:26px;text-align:right;color:${s.c};font-weight:700">${hero.stats[s.key]}</span></div>`
+  ).join("");
+  card.innerHTML = `
+    <div class="flip">
+      <div class="face front">
+        <div class="banner" style="background:linear-gradient(135deg,${hero.el.c1},${hero.el.c2})">
+          <div class="lvl">HJ-NIVÅ ${hero.lvl}</div>
+          <div class="portrait" style="background:linear-gradient(135deg,${hero.el.c2},${hero.el.c1})">
+            ${initials(hero.name)}<span class="el">${hero.el.emoji}</span>
+          </div>
+          <div class="namebox">
+            <div class="alias">${hero.alias}</div>
+            <div class="realname">a.k.a. ${hero.name}</div>
+          </div>
+        </div>
+        <div class="body">
+          ${statsHtml}
+          <div class="fact">🦸 Kraft: ${hero.power}</div>
+          <div class="fact">🫣 Svaghet: <b>${hero.weakness}</b></div>
+          <div class="catch">${hero.catch}</div>
+        </div>
+        <div class="flip-hint">klicka för att vända ↻</div>
+      </div>
+      <div class="face back">
+        <h3>Ursprungshistoria</h3>
+        <div class="origin">${hero.origin}</div>
+        <div class="kv">
+          <div><span>Element:</span> ${hero.el.emoji} ${hero.el.name}</div>
+          <div><span>Kompanjon:</span> ${hero.side.e} ${hero.side.n}</div>
+        </div>
+        <div class="power-mv">
+          <div class="t">Signaturdrag</div>
+          <div class="n">${hero.moveName}!</div>
+        </div>
+        <div class="flip-hint">klicka för att vända ↻</div>
+      </div>
+    </div>`;
+  card.querySelector(".flip").addEventListener("click", ()=> card.classList.toggle("turned"));
+  return card;
+}
+
+function renderChips(){
+  chips.innerHTML = "";
+  roster.forEach((name,i)=>{
+    const c = document.createElement("span");
+    c.className = "chip";
+    c.innerHTML = `${name} <button title="Ta bort" aria-label="Ta bort ${name}">✕</button>`;
+    c.querySelector("button").addEventListener("click", ()=>{ roster.splice(i,1); render(); });
+    chips.appendChild(c);
+  });
+}
+
+/* team-ups: consecutive pairs so it doesn't explode combinatorially */
+function renderTeams(){
+  const sec = document.getElementById("teamSection");
+  const tg = document.getElementById("teamGrid");
+  tg.innerHTML = "";
+  if(roster.length < 2){ sec.style.display="none"; return; }
+  sec.style.display = "block";
+  for(let i=0;i<roster.length-1;i++){
+    const a = roster[i], b = roster[i+1];
+    const seed = a+"+"+b;
+    const move = pick(TEAM_NOUN, seed, "tm1") + " × " + pick(ALIAS_NOUN, seed, "tm2");
+    const desc = TEAM_DESC[ fnv(seed) % TEAM_DESC.length ];
+    const t = document.createElement("div");
+    t.className = "team";
+    t.innerHTML = `<div class="who">${a} + ${b}</div>
+                   <div class="move">${move}</div>
+                   <div class="desc">Tillsammans ${desc}</div>`;
+    tg.appendChild(t);
+  }
+}
+
+/* family ultimate: unlocks at >=3 heroes; full glory at >=5 */
+function renderUltimate(){
+  const u = document.getElementById("ultimate");
+  const n = roster.length;
+  const need = 3;
+  if(n < need){
+    u.className = "ultimate locked";
+    u.innerHTML = `<div class="cap dim">Familjeultimat — låst 🔒</div>
+      <div class="big" style="color:var(--muted)">Kalla fram minst ${need} hjältar</div>
+      <div class="flavor">När hela laget är på plan låser sig ett gemensamt slutdrag upp. Just nu: ${n} av ${need}.</div>
+      <div class="meter"><i style="width:${Math.round(n/need*100)}%"></i></div>
+      <div class="meter-lab">${n} / ${need} hjältar</div>`;
+    return;
+  }
+  const seed = roster.slice().sort().join("|");
+  const ultName = pick(TEAM_NOUN, seed, "u1").toUpperCase() + "-" + pick(ALIAS_ADJ, seed, "u2").toUpperCase();
+  const power = Math.min(100, Math.round(n/5*100));
+  const inits = roster.map(initials).join(" · ");
+  u.className = "ultimate";
+  u.innerHTML = `<div class="cap">⭐ Familjeultimat upplåst ⭐</div>
+    <div class="big">${ultName}!</div>
+    <div class="flavor">Alla ${n} hjältar ställer sig rygg mot rygg. ${inits}. En enda gnista räcker — och plötsligt finns det ingen dålig dag kvar i hela Malmö. Ingen minns riktigt vem som startade skrattet.</div>
+    <div class="meter"><i style="width:${power}%"></i></div>
+    <div class="meter-lab">Lagstyrka ${power}%${n<5?" — full styrka vid 5 hjältar":" — MAXAD 🔥"}</div>`;
+}
+
+/* ---------- controls ---------- */
+function addName(){
+  const inp = document.getElementById("nameInput");
+  const v = inp.value.trim();
+  if(!v) return;
+  if(roster.length >= 12){ inp.value=""; return; }
+  if(!roster.some(n => n.toLowerCase() === v.toLowerCase())) roster.push(v);
+  inp.value = "";
+  render();
+  // gently scroll the newest card into view
+  const cards = grid.children;
+  if(cards.length) cards[cards.length-1].scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+document.getElementById("addBtn").addEventListener("click", addName);
+document.getElementById("nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addName(); });
+document.getElementById("printBtn").addEventListener("click", ()=> window.print());
+document.getElementById("resetBtn").addEventListener("click", ()=>{
+  roster = DEFAULT_ROSTER.slice(); render();
+});
+
+render();
+</script>
+</body>
+</html>
