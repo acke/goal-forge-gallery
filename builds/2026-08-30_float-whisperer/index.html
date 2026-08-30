@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Float Whisperer</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --ink:#e6edf3; --muted:#8b98a9;
+    --sign:#f778ba;      /* sign bit  */
+    --exp:#ffca5f;       /* exponent  */
+    --man:#5fb2ff;       /* mantissa  */
+    --good:#3fb950; --warn:#f0883e; --line:#2a3240;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;padding:32px 20px 64px}
+  h1{font-size:1.75rem;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 26px;font-size:.98rem;line-height:1.5}
+  .sub b{color:var(--ink);font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:20px;margin-bottom:18px}
+  label{display:block;font-size:.8rem;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;margin-bottom:8px}
+  .inrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  input#num{flex:1;min-width:220px;background:#0b0f16;border:1px solid var(--line);
+    color:var(--ink);font-size:1.35rem;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    padding:12px 14px;border-radius:10px;outline:none}
+  input#num:focus{border-color:var(--man)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .chip{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+    font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:.82rem;
+    padding:7px 11px;border-radius:999px;cursor:pointer;transition:.12s}
+  .chip:hover{border-color:var(--man);transform:translateY(-1px)}
+  .chip small{color:var(--muted);margin-left:5px}
+
+  /* bit field */
+  .bits{display:flex;flex-wrap:wrap;gap:3px;margin:6px 0 4px;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  .bit{width:22px;height:30px;display:flex;align-items:center;justify-content:center;
+    border-radius:5px;font-size:.9rem;font-weight:600;color:#0b0f16;user-select:none}
+  .bit.z{color:var(--muted);background:#0b0f16;border:1px solid var(--line)}
+  .bit.s{background:var(--sign)} .bit.e{background:var(--exp)} .bit.m{background:var(--man)}
+  .bit.gap{width:6px;background:none}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:12px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .dot.s{background:var(--sign)} .dot.e{background:var(--exp)} .dot.m{background:var(--man)}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .kv{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .kv .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+  .kv .v{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:1.02rem;
+    margin-top:5px;word-break:break-all;line-height:1.45}
+  .v .sc{color:var(--sign)} .v .ec{color:var(--exp)} .v .mc{color:var(--man)}
+  .exact{font-size:1.05rem}
+  .exact .extra{color:var(--warn)}   /* the digits you didn't ask for */
+  .verdict{font-size:1rem;line-height:1.55;padding:14px 16px;border-radius:10px;
+    background:#12271a;border:1px solid #21432a;color:#c7f0d0}
+  .verdict.warn{background:#2a1e12;border-color:#4a3018;color:#f3d3a8}
+  .verdict.bad{background:#2a1416;border-color:#4a1e22;color:#f3b0b4}
+  .verdict b{color:#fff}
+  .neighbours{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:.92rem;line-height:1.9}
+  .neighbours .me{color:var(--man);font-weight:600}
+  .neighbours .arrow{color:var(--muted)}
+  .foot{color:var(--muted);font-size:.86rem;line-height:1.6;margin-top:26px;
+    border-top:1px solid var(--line);padding-top:18px}
+  .foot b{color:var(--ink)}
+  .badge{display:inline-block;font-size:.72rem;padding:3px 9px;border-radius:999px;
+    background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin-left:8px}
+  .badge.sub{color:var(--warn);border-color:#4a3018}
+  .badge.special{color:var(--sign);border-color:#5a2a44}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The Float Whisperer 🔬</h1>
+  <p class="sub">Type a number. This is the exact value your computer <b>actually</b> stores for it —
+  bit for bit, no rounding hidden from you. Every language you'll ever write (Java's <code>double</code>,
+  Python's <code>float</code>, JS number) uses this same 64-bit IEEE 754 box. Ever wondered why
+  <b>0.1 + 0.2</b> misbehaves? It's not a bug. It's right here.</p>
+
+  <div class="card">
+    <label for="num">A number</label>
+    <div class="inrow">
+      <input id="num" value="0.1" spellcheck="false" autocomplete="off"
+        inputmode="decimal" aria-label="number to decode">
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="card">
+    <label>The 64 bits <span id="kindBadge"></span></label>
+    <div class="bits" id="bits"></div>
+    <div class="legend">
+      <span><i class="dot s"></i> 1 sign bit</span>
+      <span><i class="dot e"></i> 11 exponent bits</span>
+      <span><i class="dot m"></i> 52 mantissa bits</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="kv"><div class="k">You typed</div><div class="v" id="typed">—</div></div>
+      <div class="kv"><div class="k">Decoded pieces</div><div class="v" id="pieces">—</div></div>
+    </div>
+    <div class="kv" style="margin-top:12px">
+      <div class="k">What's actually stored (the exact, full decimal value of those bits)</div>
+      <div class="v exact" id="exact">—</div>
+    </div>
+    <div class="kv" style="margin-top:12px">
+      <div class="k">Rounding error (what you asked for, minus what you got)</div>
+      <div class="v" id="error">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>The two nearest floats (there is nothing between them — this is the grid)</label>
+    <div class="neighbours" id="neighbours">—</div>
+    <div class="kv" style="margin-top:12px">
+      <div class="k">Gap to the next float (one ULP — the resolution of the number line right here)</div>
+      <div class="v" id="ulp">—</div>
+    </div>
+  </div>
+
+  <div id="verdict" class="verdict">—</div>
+
+  <p class="foot">
+    <b>What this is:</b> a real IEEE 754 <i>binary64</i> decoder. The "exact" value is computed with
+    BigInt arithmetic — a double is always an integer times a power of two, and any such number has a
+    <i>terminating</i> decimal, so the long tail you see is the true, complete value, not an
+    approximation. <b>What it isn't:</b> it doesn't cover 32-bit floats or decimal128; and the
+    "you typed" line shows how JavaScript parsed your text, which is itself already rounded to the
+    nearest double — same rounding Java and Python do.<br><br>
+    <b>The one thing to take to work:</b> floats aren't fuzzy, they're a <i>grid</i> that gets coarser
+    as numbers grow. Past 2⁵³ the grid is wider than 1, so integers start skipping. Never <code>==</code>
+    two floats; compare within a tolerance. — Natt 🌙
+  </p>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- bit plumbing ---------- */
+const dv = new DataView(new ArrayBuffer(8));
+function bitsOf(num){ dv.setFloat64(0, num, false); return dv.getBigUint64(0, false); }
+function fromBits(b){ dv.setBigUint64(0, b & 0xFFFFFFFFFFFFFFFFn, false); return dv.getFloat64(0, false); }
+
+/* ---------- exact rational (numerator/denominator, den is power of two) ---------- */
+function decompose(num){
+  const bits = bitsOf(num);
+  const sign = (bits >> 63n) & 1n;
+  const E    = (bits >> 52n) & 0x7FFn;      // raw exponent field 0..2047
+  const frac = bits & 0xFFFFFFFFFFFFFn;      // 52-bit mantissa fraction
+  return {bits, sign, E, frac};
+}
+function exactRational(num){
+  const {sign, E, frac} = decompose(num);
+  let M, e2;
+  if(E === 0n){ M = frac; e2 = -1074n; }                    // subnormal / zero
+  else       { M = (1n << 52n) + frac; e2 = E - 1075n; }    // normal (implicit 1)
+  let n, d;
+  if(e2 >= 0n){ n = M << e2; d = 1n; } else { n = M; d = 1n << (-e2); }
+  if(sign) n = -n;
+  return {n, d};   // value = n/d exactly, d is a power of two (or 1)
+}
+/* rational -> exact terminating decimal string (works when den = 2^a * 5^b) */
+function count5(x){ let c=0n; while(x % 5n === 0n && x>1n){ x/=5n; c++; } return c; }
+function count2(x){ let c=0n; while((x & 1n) === 0n && x>1n){ x>>=1n; c++; } return c; }
+function ratToDecimal(n, d){
+  if(d === 1n) return n.toString();
+  const neg = n < 0n; if(neg) n = -n;
+  const a = count2(d), b = count5(d);
+  // d should be 2^a * 5^b for our inputs; scale to 10^m
+  const m = a > b ? a : b;
+  const factor = (1n << (m - a)) * (5n ** (m - b));
+  let scaled = (n * factor).toString();          // value = scaled / 10^m
+  const M = Number(m);
+  if(M === 0) return (neg?"-":"") + scaled;
+  while(scaled.length <= M) scaled = "0" + scaled;
+  let intPart = scaled.slice(0, scaled.length - M);
+  let frac    = scaled.slice(scaled.length - M).replace(/0+$/, "");
+  return (neg?"-":"") + intPart + (frac ? "." + frac : "");
+}
+/* subtract two rationals -> {n,d} */
+function ratSub(a, b){ return { n: a.n * b.d - b.n * a.d, d: a.d * b.d }; }
+
+/* ---------- next / previous representable double ---------- */
+function nextUp(x){
+  if(Number.isNaN(x) || x === Infinity) return x;
+  if(x === 0) return fromBits(1n);                 // smallest positive subnormal
+  let b = bitsOf(x);
+  b = (x > 0) ? b + 1n : b - 1n;
+  return fromBits(b);
+}
+function nextDown(x){ return -nextUp(-x); }
+
+/* ---------- parse the raw text as an exact decimal rational (for true error) ---------- */
+function typedToRational(str){
+  str = str.trim();
+  const m = /^([+-]?)(\d*)(?:\.(\d+))?$/.exec(str);   // plain decimal only
+  if(!m) return null;
+  const sign = m[1] === "-" ? -1n : 1n;
+  const intP = m[2] || "0", fracP = m[3] || "";
+  if(intP === "" && fracP === "") return null;
+  const digits = intP + fracP;
+  let n = BigInt(digits || "0") * sign;
+  let d = 10n ** BigInt(fracP.length);
+  return {n, d};
+}
+
+/* ---------- rendering ---------- */
+function tag(cls, txt){ return `<span class="${cls}">${txt}</span>`; }
+
+function renderBits(bits){
+  const s = bits.toString(2).padStart(64, "0");
+  const el = $("bits"); el.innerHTML = "";
+  for(let i=0;i<64;i++){
+    if(i===1 || i===12){                       // visual gaps after sign & exponent
+      const g=document.createElement("div"); g.className="bit gap"; el.appendChild(g);
+    }
+    const b=document.createElement("div");
+    const cls = i===0 ? "s" : (i<12 ? "e" : "m");
+    b.className = "bit " + (s[i]==="1" ? cls : "z");
+    b.textContent = s[i];
+    el.appendChild(b);
+  }
+}
+
+function fmtNum(x){
+  if(Number.isNaN(x)) return "NaN";
+  if(x===Infinity) return "∞"; if(x===-Infinity) return "−∞";
+  // show full JS repr; it round-trips to the same double
+  return Object.is(x,-0) ? "-0" : String(x);
+}
+
+function decode(){
+  const raw = $("num").value;
+  let x = Number(raw);
+
+  const {sign, E, frac} = decompose(x);
+  renderBits(bitsOf(x));
+
+  // kind badge
+  const badge = $("kindBadge");
+  let special = false;
+  if(E === 0x7FFn){
+    special = true;
+    badge.className = "badge special";
+    badge.textContent = frac === 0n ? "±Infinity — the exponent maxed out" : "NaN — not a number";
+  } else if(E === 0n && frac !== 0n){
+    badge.className = "badge sub";
+    badge.textContent = "subnormal — smaller than 2⁻¹⁰²², precision fading";
+  } else if(x === 0){
+    badge.className = "badge";
+    badge.textContent = (sign? "negative zero (−0)" : "positive zero");
+  } else {
+    badge.className = "badge";
+    badge.textContent = "normal";
+  }
+
+  // typed line
+  $("typed").innerHTML = Number.isNaN(x) ? "not a number" : fmtNum(x);
+
+  // pieces
+  if(special){
+    $("pieces").innerHTML = "sign " + tag("sc", sign?1:0) +
+      " · exponent " + tag("ec","11111111111") + " · mantissa " +
+      tag("mc", frac===0n ? "all zero → Infinity" : "nonzero → NaN");
+  } else {
+    const unbiased = (E === 0n) ? -1022 : Number(E - 1023n);
+    const {n, d} = exactRational(x);
+    // M × 2^k form
+    let M, k;
+    if(E===0n){ M = frac; k = -1074n; } else { M = (1n<<52n)+frac; k = E - 1075n; }
+    $("pieces").innerHTML =
+      "sign " + tag("sc", sign?"1 (−)":"0 (+)") + "<br>" +
+      "exponent " + tag("ec", E.toString()) + " − 1023 = " + tag("ec", (E===0n?"(−1022, subnormal)":unbiased)) + "<br>" +
+      "= " + (sign?"−":"") + tag("mc", (E===0n?"0.":"1.") + (frac===0n?"0":frac.toString(2).padStart(52,"0").replace(/0+$/,"")||"0")) +
+      " × 2<sup>" + tag("ec", unbiased) + "</sup><br>" +
+      "= " + tag("mc", M.toString()) + " × 2<sup>" + tag("ec", k.toString()) + "</sup>";
+  }
+
+  // exact stored value + rounding error + neighbours
+  if(special || Number.isNaN(x)){
+    $("exact").textContent = special && E===0x7FFn && frac===0n ? (sign?"−∞":"∞") : "—";
+    $("error").textContent = "—";
+    $("neighbours").textContent = "—";
+    $("ulp").textContent = "—";
+    setVerdict(x, null, null, special);
+    return;
+  }
+
+  const r = exactRational(x);
+  const exactStr = ratToDecimal(r.n, r.d);
+  // highlight the "extra" digits beyond what the user typed
+  const typedTrim = raw.trim();
+  let exactHtml = exactStr;
+  if(exactStr.startsWith(typedTrim) && exactStr.length > typedTrim.length){
+    exactHtml = typedTrim + tag("extra", exactStr.slice(typedTrim.length));
+  }
+  $("exact").innerHTML = exactHtml;
+
+  // true rounding error: typed-decimal minus stored
+  const tr = typedToRational(raw);
+  if(tr){
+    const diff = ratSub(tr, r);          // asked - got
+    if(diff.n === 0n){
+      $("error").innerHTML = tag("mc","0") + " — this value lands exactly on the grid. Nice.";
+    } else {
+      const errNum = Number(diff.n) / Number(diff.d);
+      $("error").innerHTML = (diff.n<0n?"+":"−") + " you got " +
+        (diff.n<0n?"more":"less") + " than you asked for by " +
+        tag("extra", Math.abs(errNum).toExponential(4));
+    }
+  } else {
+    $("error").innerHTML = "<span style='color:var(--muted)'>only shown for plain decimals — this input used exponent/expression form</span>";
+  }
+
+  // neighbours
+  const up = nextUp(x), down = nextDown(x);
+  const upR = exactRational(up), downR = exactRational(down);
+  const upStr = ratToDecimal(upR.n, upR.d);
+  const downStr = ratToDecimal(downR.n, downR.d);
+  $("neighbours").innerHTML =
+    `<span class="arrow">↓ prev</span> ${clip(downStr)}<br>` +
+    `<span class="me">● this </span> ${clip(exactStr)}<br>` +
+    `<span class="arrow">↑ next</span> ${clip(upStr)}`;
+
+  // ULP
+  const gap = ratSub(exactRational(up), r);
+  const gapStr = ratToDecimal(gap.n<0n?-gap.n:gap.n, gap.d);
+  const gapApprox = Number(gap.n)/Number(gap.d);
+  $("ulp").innerHTML = tag("mc", gapStr) +
+    `  <span style="color:var(--muted)">≈ ${Math.abs(gapApprox).toExponential(3)}</span>`;
+
+  setVerdict(x, gapApprox, r, false);
+}
+
+function clip(s){ return s.length > 60 ? s.slice(0,58)+"…" : s; }
+
+function setVerdict(x, gap, r, special){
+  const v = $("verdict");
+  if(special){
+    v.className = "verdict bad";
+    if(Number.isNaN(x)) v.innerHTML = "<b>NaN.</b> The one value that isn't equal to itself — <code>NaN === NaN</code> is <b>false</b>. If your code hangs comparing things, look here first.";
+    else v.innerHTML = "<b>Infinity.</b> The exponent ran out of room. Anything bigger than ~1.8×10³⁰⁸ just... overflows to here, quietly.";
+    return;
+  }
+  if(x === 0){ v.className="verdict"; v.innerHTML = "<b>Zero</b> — the one number that's perfectly, exactly zero. Enjoy it while it lasts."; return; }
+  const ax = Math.abs(x);
+  if(Number.isInteger(x) && ax >= 9007199254740992){
+    v.className="verdict bad";
+    v.innerHTML = "<b>Up at 2⁵³.</b> This exact integer is fine — but look at the ULP above: the gap to the next float is now <b>2 or more</b>. The odd number just past it (e.g. 2⁵³+1) has nowhere to land and rounds back down to its even neighbour. Doubles stop being able to count. This is why big IDs belong in <code>long</code> / <code>BigInt</code>, never a double.";
+  } else if(gap !== null && gap === 0){
+    v.className="verdict"; v.innerHTML="<b>Exact.</b> Lands right on the grid.";
+  } else if(r && r.d === 1n){
+    v.className="verdict";
+    v.innerHTML = "<b>Exact integer.</b> Stored perfectly — no tail, no drama. Doubles hold every whole number up to 2⁵³ on the nose.";
+  } else {
+    // a fraction with a tail
+    v.className="verdict warn";
+    v.innerHTML = "<b>Not exact.</b> The tidy decimal you typed can't be written as a finite sum of halves, quarters, eighths… so the nearest float carries a tail. This is the whole reason <code>0.1 + 0.2 !== 0.3</code> — try the chip. It's not the language's fault; it's binary fractions meeting decimal ones.";
+  }
+}
+
+/* ---------- chips ---------- */
+const CHIPS = [
+  {v:"0.1", note:"the classic"},
+  {v:"0.2", note:""},
+  {v:"0.3", note:"≠ 0.1+0.2"},
+  {expr:()=>0.1+0.2, label:"0.1 + 0.2", note:"the famous glitch"},
+  {expr:()=>1/3, label:"1 / 3", note:""},
+  {v:"9007199254740993", note:"2⁵³+1 — can't fit"},
+  {expr:()=>Math.PI, label:"π", note:""},
+  {v:"1e308", note:"near the ceiling"},
+  {v:"5e-324", note:"smallest subnormal"},
+  {v:"0", note:"the exact one"},
+  {v:"Infinity", note:"overflow"}
+];
+function buildChips(){
+  const c = $("chips");
+  CHIPS.forEach(ch=>{
+    const b=document.createElement("button"); b.className="chip";
+    const label = ch.label || ch.v;
+    b.innerHTML = label + (ch.note? `<small>${ch.note}</small>`:"");
+    b.onclick = ()=>{
+      const val = ch.expr ? ch.expr() : ch.v;
+      // for expression chips, show the resulting number so bits + decode are honest
+      $("num").value = ch.expr ? String(ch.expr()) : ch.v;
+      decode();
+      $("num").focus();
+    };
+    c.appendChild(b);
+  });
+}
+
+$("num").addEventListener("input", decode);
+buildChips();
+decode();
+</script>
+</body>
+</html>
