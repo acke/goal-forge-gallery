@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Sticky Default — a Python gotcha, live</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --ink:#e6edf3;
+    --dim:#8b98a5; --line:#2b3542; --accent:#7ee787; --warn:#ffb454;
+    --trap:#ff7b72; --fix:#7ee787; --blue:#79c0ff; --purple:#d2a8ff;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  body{line-height:1.5;padding:28px 18px 80px;max-width:1040px;margin:0 auto}
+  h1{font-size:clamp(24px,4.4vw,38px);margin:.1em 0 .1em;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:15px;max-width:64ch}
+  .moon{opacity:.9}
+  code,.mono{font-family:var(--mono)}
+  .lab{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:26px}
+  @media(max-width:760px){.lab{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px;position:relative;overflow:hidden}
+  .card.trap{border-color:#4a2b2b}
+  .card.fix{border-color:#2b4a34}
+  .card h2{font-size:16px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+  .tag.trap{background:rgba(255,123,114,.14);color:var(--trap)}
+  .tag.fix{background:rgba(126,231,135,.14);color:var(--fix)}
+  .cardnote{color:var(--dim);font-size:13px;margin:.2em 0 14px;min-height:34px}
+  pre.code{background:#0a0e14;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 14px;font-family:var(--mono);font-size:13px;line-height:1.55;overflow-x:auto}
+  .kw{color:var(--purple)} .fn{color:var(--blue)} .str{color:var(--accent)} .cm{color:var(--dim);font-style:italic} .lit{color:var(--warn)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=text]{flex:1;min-width:120px;background:#0a0e14;border:1px solid var(--line);border-radius:9px;color:var(--ink);
+    padding:9px 12px;font-family:var(--mono);font-size:14px}
+  input[type=text]:focus{outline:none;border-color:var(--blue)}
+  button{cursor:pointer;font-family:var(--sans);font-weight:600;font-size:13.5px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--ink);padding:9px 14px;border-radius:9px;transition:.12s}
+  button:hover{border-color:var(--dim);transform:translateY(-1px)}
+  button.go.trap{background:rgba(255,123,114,.16);border-color:#5c3230;color:#ffd0cc}
+  button.go.fix{background:rgba(126,231,135,.16);border-color:#2f5c3b;color:#c9ffd4}
+  button.ghost{background:transparent;color:var(--dim);font-weight:500}
+  .out{margin-top:14px}
+  .outlabel{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  .box{background:#0a0e14;border:1px dashed var(--line);border-radius:10px;padding:10px;min-height:52px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;transition:.2s}
+  .box.pulse{box-shadow:0 0 0 2px rgba(255,180,84,.4);border-color:var(--warn)}
+  .chip{font-family:var(--mono);font-size:12.5px;padding:5px 9px;border-radius:7px;background:var(--panel2);border:1px solid var(--line);animation:pop .28s ease}
+  .chip.trap{background:rgba(255,123,114,.13);border-color:#5c3230;color:#ffd0cc}
+  .chip.fix{background:rgba(126,231,135,.13);border-color:#2f5c3b;color:#c9ffd4}
+  .empty{color:var(--dim);font-family:var(--mono);font-size:12.5px;font-style:italic}
+  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  .log{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--dim);max-height:132px;overflow-y:auto;border-top:1px solid var(--line);padding-top:8px}
+  .log div{padding:2px 0;white-space:pre-wrap}
+  .log .ret.trap{color:#ffb0aa} .log .ret.fix{color:#a8f0b6}
+  .idbadge{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10px}
+  .idbadge b{color:var(--warn)}
+  .inspector{margin-top:26px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+  .inspector h3{margin:0 0 4px;font-size:15px}
+  .inspector p{color:var(--dim);font-size:13.5px;margin:.3em 0}
+  .defrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;font-family:var(--mono);font-size:13px}
+  .fnobj{background:#0a0e14;border:1px solid #5c3230;border-radius:10px;padding:12px 14px}
+  .fnobj .k{color:var(--blue)}
+  .arrow{color:var(--warn);font-size:20px}
+  .sharedbox{background:rgba(255,123,114,.10);border:1px solid #5c3230;border-radius:10px;padding:12px 14px;color:#ffd0cc}
+  .reveal{margin-top:26px;background:linear-gradient(180deg,#141b26,#111722);border:1px solid var(--line);border-radius:14px;padding:22px 22px 24px}
+  .reveal h3{margin:0 0 10px;font-size:17px}
+  .reveal p{font-size:14.5px;color:#cdd7e0;margin:.55em 0}
+  .reveal .big{color:var(--warn);font-weight:600}
+  .bridge{margin-top:16px;background:#0a0e14;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .bridge h4{margin:0 0 8px;font-size:13.5px;color:var(--blue);display:flex;gap:8px;align-items:center}
+  .bridge p{font-size:13.5px;color:var(--dim);margin:.4em 0}
+  .foot{margin-top:34px;color:var(--dim);font-size:12.5px;text-align:center;line-height:1.7}
+  .foot b{color:var(--accent)}
+  .hint{font-size:12px;color:var(--warn);margin-top:6px;min-height:16px;transition:.2s}
+  .kpi{display:inline-block;font-family:var(--mono);color:var(--warn)}
+</style>
+</head>
+<body>
+
+  <h1>The Sticky Default <span class="moon">🌙</span></h1>
+  <p class="sub">A Python function is supposed to forget everything the moment it returns. This one
+  <em>doesn't</em>. Call the left one a few times — each call is fresh, you never hand it a list — and
+  watch it quietly remember everything you ever gave it. The bug isn't in the calls. It's in the word
+  <code>[]</code>, and <em>when</em> Python decides to run it.</p>
+
+  <div class="lab">
+    <!-- TRAP -->
+    <div class="card trap">
+      <h2><span class="tag trap">the trap</span> box=[]</h2>
+      <div class="cardnote" id="note-trap">Type a thing, press <b>Call</b>. Do it three or four times. Notice you get back everything, not just the last thing.</div>
+      <pre class="code"><span class="kw">def</span> <span class="fn">remember</span>(item, box=<span class="lit">[]</span>):   <span class="cm"># ← the trap lives here</span>
+    box.append(item)
+    <span class="kw">return</span> box</pre>
+      <div class="row">
+        <input type="text" id="in-trap" placeholder="milk" autocomplete="off" spellcheck="false">
+        <button class="go trap" id="call-trap">Call remember(…)</button>
+      </div>
+      <div class="hint" id="hint-trap"></div>
+      <div class="out">
+        <div class="outlabel">what came back</div>
+        <div class="box" id="box-trap"><span class="empty"># press Call…</span></div>
+      </div>
+      <div class="idbadge">the default object: <b id="id-trap">id=… (not yet created)</b></div>
+      <div class="log" id="log-trap"></div>
+    </div>
+
+    <!-- FIX -->
+    <div class="card fix">
+      <h2><span class="tag fix">the fix</span> box=None</h2>
+      <div class="cardnote" id="note-fix">Same game, one changed line. This one forgets, every single time — the way you expected.</div>
+      <pre class="code"><span class="kw">def</span> <span class="fn">remember</span>(item, box=<span class="kw">None</span>):
+    <span class="kw">if</span> box <span class="kw">is</span> <span class="kw">None</span>:      <span class="cm"># make a NEW list per call</span>
+        box = <span class="lit">[]</span>
+    box.append(item)
+    <span class="kw">return</span> box</pre>
+      <div class="row">
+        <input type="text" id="in-fix" placeholder="milk" autocomplete="off" spellcheck="false">
+        <button class="go fix" id="call-fix">Call remember(…)</button>
+      </div>
+      <div class="hint" id="hint-fix"></div>
+      <div class="out">
+        <div class="outlabel">what came back</div>
+        <div class="box" id="box-fix"><span class="empty"># press Call…</span></div>
+      </div>
+      <div class="idbadge">the default object: <b id="id-fix">None</b> — the list is born inside the call</div>
+      <div class="log" id="log-fix"></div>
+    </div>
+  </div>
+
+  <!-- INSPECTOR -->
+  <div class="inspector">
+    <h3>Why the left one leaks 🔍</h3>
+    <p>When Python runs <code>def remember(...)</code>, it evaluates the default expression <code>[]</code>
+    <b style="color:var(--warn)">exactly once</b> — right then, at definition time — and staples the resulting
+    list onto the function object as <code>remember.__defaults__</code>. Every call that doesn't pass
+    <code>box</code> reuses <em>that one list</em>. There is only ever one box.</p>
+    <div class="defrow">
+      <div class="fnobj">remember.<span class="k">__defaults__</span> = ( <span id="def-mirror" style="color:var(--warn)">[]</span> , )</div>
+      <span class="arrow">→</span>
+      <div class="sharedbox">the single shared list — total items ever: <b id="shared-count">0</b></div>
+    </div>
+    <p style="margin-top:12px;font-size:12.5px">Look up at the <b style="color:var(--warn)">id=</b> badge on the trap card: it never changes across calls.
+    Same object, every time. On the fix card the default is just <code>None</code> (immutable, harmless), and a
+    brand-new list is created <em>inside</em> the call — so it can't accumulate.</p>
+  </div>
+
+  <!-- REVEAL -->
+  <div class="reveal">
+    <h3>The one sentence to keep 🌙</h3>
+    <p><span class="big">Default argument values are evaluated once, when the <code>def</code> runs — not each time you call.</span>
+    Immutable defaults (<code>None</code>, <code>0</code>, <code>"…"</code>, tuples) don't care. But a mutable default
+    (<code>[]</code>, <code>{}</code>, <code>set()</code>) becomes a shared, persistent bucket hiding on the function itself.</p>
+    <p>The fix is muscle memory: default to <code>None</code>, then build the real thing on the first line of the body.
+    Linters (Ruff <code>B006</code>, Pylint <code>W0102</code>) will yell about this — now you'll know exactly why.</p>
+
+    <div class="bridge">
+      <h4>☕ For the Java brain</h4>
+      <p>Java has no default parameters, so you never trip this <em>exact</em> wire. But the shape is familiar:
+      it's the same trap as a <code class="mono">static</code> field initialised once and shared by everything —</p>
+      <pre class="code" style="margin:8px 0 4px"><span class="kw">static</span> List&lt;String&gt; box = <span class="kw">new</span> ArrayList&lt;&gt;();  <span class="cm">// created ONCE</span>
+List&lt;String&gt; remember(String item){ box.add(item); <span class="kw">return</span> box; }</pre>
+      <p>Every caller mutates the same list — a spooky-action-at-a-distance bug. Python's <code>box=[]</code> is
+      that static, wearing a parameter's clothes. The mental swap: in Python the <code>def</code> line runs
+      <em>as code</em>, once, top-to-bottom — defaults included — the way a Java static initialiser runs once.</p>
+    </div>
+  </div>
+
+  <p class="foot">
+    Built at 02:00 in Malmö for a Java dev learning to read Python's mind.<br>
+    Fully offline, no libraries, faithful to real CPython semantics. Type <b>reset</b> as an item to clear the shared box.<br>
+    — Natt 🌙
+  </p>
+
+<script>
+(function(){
+  "use strict";
+  // ---- Faithful model of the two functions --------------------------------
+  // TRAP: one list, created "at def time", shared across every call.
+  var trapDefault = [];                 // remember.__defaults__[0]
+  var trapId = 140234 + Math.floor(Math.random()*90000); // a stable fake CPython id
+  var trapCalls = 0, fixCalls = 0;
+
+  function remember_trap(item){
+    trapDefault.push(item);             // box.append(item) on the SHARED box
+    return trapDefault;                 // returns the same object every time
+  }
+  function remember_fix(item){
+    var box = null;                     // box=None
+    if (box === null) box = [];         // fresh list, this call only
+    box.push(item);
+    return box;
+  }
+
+  // ---- DOM helpers --------------------------------------------------------
+  var $ = function(id){ return document.getElementById(id); };
+  function renderBox(el, arr, cls){
+    el.innerHTML = "";
+    if(!arr.length){ el.innerHTML = '<span class="empty"># []</span>'; return; }
+    arr.forEach(function(v){
+      var c = document.createElement("span");
+      c.className = "chip " + cls;
+      c.textContent = JSON.stringify(v);
+      el.appendChild(c);
+    });
+    el.classList.add("pulse");
+    setTimeout(function(){ el.classList.remove("pulse"); }, 260);
+  }
+  function logLine(logEl, text, retText, cls){
+    var d = document.createElement("div");
+    d.innerHTML = ">>> " + text + "\n    <span class='ret "+cls+"'>" + retText + "</span>";
+    logEl.insertBefore(d, logEl.firstChild);
+  }
+  function pyRepr(arr){ return "[" + arr.map(function(v){return "'"+String(v).replace(/'/g,"\\'")+"'";}).join(", ") + "]"; }
+
+  // ---- TRAP wiring --------------------------------------------------------
+  var inTrap = $("in-trap");
+  function callTrap(){
+    var raw = inTrap.value.trim();
+    var item = raw || "thing" + (trapCalls+1);
+    if(raw.toLowerCase() === "reset"){ resetShared(); inTrap.value=""; return; }
+    trapCalls++;
+    var res = remember_trap(item);
+    renderBox($("box-trap"), res, "trap");
+    logLine($("log-trap"), "remember(" + JSON.stringify(item) + ")", "→ " + pyRepr(res), "trap");
+    $("id-trap").innerHTML = "id=0x" + trapId.toString(16) + " (same object, "+trapCalls+(trapCalls===1?" call":" calls")+")";
+    $("def-mirror").textContent = pyRepr(trapDefault);
+    $("shared-count").textContent = trapDefault.length;
+    // microcopy
+    var h = $("hint-trap");
+    if(trapCalls === 1){ h.textContent = "One item. Looks fine. Call it again with something else…"; }
+    else if(trapCalls === 2){ h.textContent = "…there it is. You never passed the first item again — but it stayed. 👀"; }
+    else { h.textContent = "It remembers everything. This box outlives the call. That's the whole bug."; }
+    inTrap.value=""; inTrap.focus();
+  }
+  function resetShared(){
+    trapDefault.length = 0;
+    renderBox($("box-trap"), trapDefault, "trap");
+    $("def-mirror").textContent = "[]";
+    $("shared-count").textContent = "0";
+    $("hint-trap").textContent = "Box wiped. (In real Python you'd restart the process — the list would still be there otherwise.)";
+    $("log-trap").innerHTML = "";
+    trapCalls = 0;
+    $("id-trap").innerHTML = "id=0x" + trapId.toString(16) + " (same object, still exists — just empty)";
+  }
+
+  // ---- FIX wiring ---------------------------------------------------------
+  var inFix = $("in-fix");
+  function callFix(){
+    var raw = inFix.value.trim();
+    var item = raw || "thing" + (fixCalls+1);
+    fixCalls++;
+    var res = remember_fix(item);       // fresh list each call
+    renderBox($("box-fix"), res, "fix");
+    logLine($("log-fix"), "remember(" + JSON.stringify(item) + ")", "→ " + pyRepr(res), "fix");
+    var h = $("hint-fix");
+    if(fixCalls >= 2){ h.textContent = "Every call returns a list of length 1. No memory, no leak. ✅"; }
+    else { h.textContent = "Now call it a few more times — it never grows past what you just gave it."; }
+    inFix.value=""; inFix.focus();
+  }
+
+  // ---- Bind ---------------------------------------------------------------
+  $("call-trap").addEventListener("click", callTrap);
+  $("call-fix").addEventListener("click", callFix);
+  inTrap.addEventListener("keydown", function(e){ if(e.key==="Enter") callTrap(); });
+  inFix.addEventListener("keydown", function(e){ if(e.key==="Enter") callFix(); });
+
+  // seed placeholders with a little grocery wit
+  var seeds = ["milk","eggs","coffee","that thing I forgot","batteries","charging cable"];
+  var si = 0;
+  function rotatePlaceholder(){
+    inTrap.setAttribute("placeholder", seeds[si % seeds.length]);
+    inFix.setAttribute("placeholder", seeds[(si+3) % seeds.length]);
+    si++;
+  }
+  rotatePlaceholder();
+  setInterval(rotatePlaceholder, 3200);
+})();
+</script>
+</body>
+</html>
