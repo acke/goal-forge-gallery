@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack-Metronomen 🌙</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161c24; --ink:#e8eef5; --dim:#8b98a8;
+    --gold:#e0b062; --green:#5fd08a; --amber:#e6b455; --red:#e5715f;
+    --line:#26313d; --creep:#c98a52; --creep2:#8a5a34;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#152030 0%,#0d1117 60%);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:26px 18px 60px}
+  h1{font-size:26px;margin:0 0 2px;letter-spacing:.3px}
+  h1 .m{color:var(--gold)}
+  .sub{color:var(--dim);font-size:14px;margin:0 0 20px;line-height:1.5}
+  .camps{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .camp{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;cursor:pointer;transition:.15s;text-align:left}
+  .camp:hover{border-color:#3a4756}
+  .camp.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;background:#1b2330}
+  .camp .t{font-weight:600;font-size:14px}
+  .camp .b{color:var(--dim);font-size:12px;margin-top:3px;line-height:1.35}
+  .camp .sec{color:var(--gold);font-variant-numeric:tabular-nums;font-weight:700}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;position:relative}
+  canvas{width:100%;height:auto;display:block;border-radius:10px;background:#0b1017;touch-action:manipulation}
+  .verdict{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:22px;font-weight:800;
+    pointer-events:none;text-shadow:0 2px 18px #000;transition:.2s;opacity:0}
+  .verdict.show{opacity:1}
+  .row{display:flex;gap:10px;margin-top:14px;align-items:stretch;flex-wrap:wrap}
+  .aggro{flex:2;min-width:200px;border:none;border-radius:14px;padding:18px;font-size:19px;font-weight:800;cursor:pointer;
+    color:#1a1205;background:linear-gradient(180deg,#f0c778,#d69f45);box-shadow:0 6px 20px #0007;transition:.08s;letter-spacing:.4px}
+  .aggro:active{transform:translateY(2px)}
+  .aggro:disabled{filter:saturate(.35) brightness(.7);cursor:default}
+  .stats{flex:3;min-width:220px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat{background:#0f151d;border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}
+  .stat .n{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;color:var(--dim);font-size:13px}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer;user-select:none}
+  input[type=range]{accent-color:var(--gold)}
+  .grade{margin-top:16px;background:#0f151d;border:1px solid var(--line);border-left:3px solid var(--gold);
+    border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.55;min-height:20px;color:#cdd8e4}
+  .grade b{color:var(--gold)}
+  .cheat{margin-top:18px;color:var(--dim);font-size:12.5px;line-height:1.6;border-top:1px solid var(--line);padding-top:14px}
+  .cheat b{color:var(--ink)}
+  .sign{margin-top:22px;text-align:center;color:var(--dim);font-size:13px}
+  kbd{background:#0f151d;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:12px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Stack-Metronomen <span class="m">🌙</span></h1>
+  <p class="sub">The one Dota micro-skill nobody drills. Draw the camp's aggro at the right second, let the creeps
+    leash out, and a fresh camp spawns on top at <b>:00</b> — a free stack of gold waiting to be farmed. Miss the
+    window and you get nothing. Pick a camp and feel the rhythm.</p>
+
+  <div class="camps" id="camps"></div>
+
+  <div class="stage">
+    <canvas id="cv" width="720" height="330"></canvas>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="row">
+    <button class="aggro" id="aggro">AGGRO CAMP</button>
+    <div class="stats">
+      <div class="stat"><div class="n" id="sStreak">0</div><div class="l">Streak</div></div>
+      <div class="stat"><div class="n" id="sBest">0</div><div class="l">Bästa</div></div>
+      <div class="stat"><div class="n" id="sTotal">0</div><div class="l">Stacks</div></div>
+    </div>
+  </div>
+
+  <div class="toggles">
+    <label>Tempo
+      <input type="range" id="speed" min="0.28" max="1" step="0.02" value="0.42">
+      <span id="speedTxt" style="width:64px;display:inline-block"></span>
+    </label>
+    <label><input type="checkbox" id="blind"> Blindläge (dölj sekunderna — spela på känsla)</label>
+    <label><input type="checkbox" id="sound" checked> Ljud</label>
+  </div>
+
+  <div class="grade" id="grade">Välj ett läger ovan så börjar klockan ticka. Tryck <kbd>AGGRO</kbd> eller <kbd>mellanslag</kbd> när visaren når det gröna fönstret.</div>
+
+  <div class="cheat">
+    <b>Fusklappen:</b> för att stacka drar du lägrets aggro strax innan minuten slår om, så hinner creepsen gå ut och
+    ett nytt läger spawnar ovanpå vid :00.
+    &nbsp;•&nbsp; Litet / mellanläger: <b>:53</b>
+    &nbsp;•&nbsp; Stort läger: <b>:52</b>
+    &nbsp;•&nbsp; Ancient: <b>:49</b> — fyra sekunder tidigare än instinkten säger, för de stora, långsamma creepsen
+    behöver längre startsträcka. Det är felet alla gör.
+  </div>
+
+  <div class="sign">Byggd i natten så att din nästa support-game börjar +170 guld rikare. — Natt 🌙</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+
+  const CAMPS = {
+    small:   {name:'Litet / mellanläger', target:53, blurb:'Vardagsstacken. Dra vid :53.'},
+    large:   {name:'Stort läger',         target:52, blurb:'Större creeps, trögare — en sekund tidigare.'},
+    ancient: {name:'Ancient-läger',       target:49, blurb:'Den alla klantar. Dra hela FYRA sek tidigare.'}
+  };
+
+  // ---- state ----
+  let campKey = null;
+  let speed = 0.42;            // real seconds per game-second
+  let blind = false, sound = true;
+  let streak = 0, best = 0, total = 0;
+
+  // round
+  const START_S = 45, END_S = 60;   // clock runs :45 -> :00
+  let roundStart = 0;               // ms timestamp
+  let running = false;
+  let pressS = null;                // game-second at which aggro was pressed
+  let outcome = null;               // 'perfect'|'good'|'early'|'late'|'miss'|null
+  let creepOut = 0;                 // 0..1 how far creeps have leashed out
+  let resolved = false;
+
+  // audio
+  let actx = null;
+  function beep(freq, dur, type, vol){
+    if(!sound) return;
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type||'sine'; o.frequency.value = freq;
+      g.gain.value = vol||0.14;
+      o.connect(g); g.connect(actx.destination);
+      const t = actx.currentTime;
+      o.start(t);
+      g.gain.setValueAtTime(vol||0.14, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur||0.09));
+      o.stop(t + (dur||0.09) + 0.02);
+    }catch(e){}
+  }
+  let lastTickS = -1;
+
+  // ---- UI build ----
+  const campsEl = document.getElementById('camps');
+  Object.keys(CAMPS).forEach(k=>{
+    const c = CAMPS[k];
+    const d = document.createElement('div');
+    d.className = 'camp'; d.dataset.k = k;
+    d.innerHTML = '<div class="t">'+c.name+'</div><div class="b">'+c.blurb+
+      ' Dra vid <span class="sec">:'+c.target+'</span></div>';
+    d.onclick = ()=>selectCamp(k);
+    campsEl.appendChild(d);
+  });
+
+  function selectCamp(k){
+    campKey = k;
+    [...campsEl.children].forEach(el=>el.classList.toggle('on', el.dataset.k===k));
+    beginRound();
+  }
+
+  function beginRound(){
+    pressS = null; outcome = null; creepOut = 0; resolved = false; lastTickS = -1;
+    roundStart = performance.now();
+    running = true;
+    document.getElementById('aggro').disabled = false;
+    hideVerdict();
+  }
+
+  // clock second from elapsed
+  function nowSecond(){
+    const el = (performance.now() - roundStart)/1000; // real seconds elapsed
+    const g = START_S + el/speed;                      // game seconds
+    return g;
+  }
+
+  function press(){
+    if(!campKey || !running || pressS!==null) return;
+    pressS = Math.min(nowSecond(), END_S);
+    const T = CAMPS[campKey].target;
+    const diff = pressS - T;                 // + = too late
+    const a = Math.abs(diff);
+    if(a <= 0.7)       outcome = 'perfect';
+    else if(a <= 1.7)  outcome = 'good';
+    else if(diff < 0)  outcome = 'early';    // pulled too soon
+    else               outcome = 'late';     // pulled too late
+    document.getElementById('aggro').disabled = true;
+    beep(diff<0?520:600, 0.06, 'triangle', 0.13);
+  }
+
+  function resolveRound(){
+    resolved = true; running = false;
+    if(pressS === null) outcome = 'miss';
+    const ok = (outcome==='perfect' || outcome==='good');
+    if(ok){
+      total++; streak++; best = Math.max(best, streak);
+      beep(660,0.1,'sine',0.16); setTimeout(()=>beep(880,0.16,'sine',0.16),90);
+    } else {
+      streak = 0;
+      beep(150,0.22,'sawtooth',0.12);
+    }
+    updateStats();
+    showVerdict(outcome);
+    grade(outcome);
+    // next round after a beat
+    setTimeout(()=>{ if(campKey) beginRound(); }, ok?1150:1500);
+  }
+
+  function updateStats(){
+    document.getElementById('sStreak').textContent = streak;
+    document.getElementById('sBest').textContent = best;
+    document.getElementById('sTotal').textContent = total;
+  }
+
+  const V = {
+    perfect:['PERFEKT STACK! \u2726','var(--green)'],
+    good:   ['Stack! \ud83d\udc4d','var(--green)'],
+    early:  ['F\u00f6r tidigt \u2014 creepsen gick tillbaka in','var(--amber)'],
+    late:   ['F\u00f6r sent \u2014 nya l\u00e4gret spawnade ovanp\u00e5','var(--red)'],
+    miss:   ['Du gl\u00f6mde dra. Inget stack.','var(--red)']
+  };
+  const verdictEl = document.getElementById('verdict');
+  function showVerdict(o){
+    const v = V[o]||['',''];
+    verdictEl.textContent = v[0];
+    verdictEl.style.color = v[1];
+    verdictEl.classList.add('show');
+  }
+  function hideVerdict(){ verdictEl.classList.remove('show'); }
+
+  const GR = {
+    perfect:[
+      'Rakt i fickan. <b>S\u00e5</b> k\u00e4nns r\u00e4tt sekund \u2014 memorera den k\u00e4nslan.',
+      'Perfekt. En riktig support hade redan t\u00e4nkt p\u00e5 n\u00e4sta l\u00e4ger.',
+      'Ren stack. Det d\u00e4r \u00e4r gratis guld som ingen ser dig plocka.'
+    ],
+    good:[ 'Godk\u00e4nt \u2014 creepsen hann ut. Sikta lite n\u00e4rmare mitten n\u00e4sta g\u00e5ng.',
+           'Stack i hamn, om \u00e4n lite slarvigt. Rytmen sitter snart.' ],
+    early:['Du drog innan visaren n\u00e5dde f\u00f6nstret. Aggron slocknade och creepsen strosade hem \u2014 v\u00e4nta ett \u00f6gonblick till.',
+           'Ot\u00e5lig. De hann hem till l\u00e4gret f\u00f6re :00. Andas, och dra senare.'],
+    late: ['En h\u00e5rsm\u00e5n f\u00f6r sent: det nya l\u00e4gret spawnade medan de gamla stod kvar. Dra tidigare.',
+           'Sent. Vid :00 m\u00e5ste creepsen redan vara p\u00e5 v\u00e4g ut \u2014 inte precis avmarscherade.'],
+    miss: ['Klockan slog om och du r\u00f6rde dig inte. V\u00e4lj \u00f6gonblicket \u2014 <kbd>mellanslag</kbd> n\u00e4r det gr\u00f6na f\u00f6nstret passeras.']
+  };
+  function grade(o){
+    const arr = GR[o]||[''];
+    const t = arr[Math.floor(Math.random()*arr.length)];
+    let extra = '';
+    if(campKey==='ancient' && (o==='late')){
+      extra = ' <i>(Ancients \u00e4r knepet: :49, inte :53. Det luras alltid.)</i>';
+    }
+    document.getElementById('grade').innerHTML = t + extra;
+  }
+
+  // ---- geometry ----
+  const clock = {cx:180, cy:170, r:118};
+  const field = {cx:520, cy:170};
+
+  function secToAngle(s){ return (-90 + (s%60)*6) * Math.PI/180; }
+  function onRing(s, r){ const a=secToAngle(s); return [clock.cx+r*Math.cos(a), clock.cy+r*Math.sin(a)]; }
+
+  function drawClock(s){
+    const T = campKey ? CAMPS[campKey].target : null;
+    // good/amber windows
+    if(campKey && !blind){
+      // amber window +/-1.7
+      ctx.strokeStyle='rgba(230,180,85,.28)'; ctx.lineWidth=16; ctx.lineCap='butt';
+      ctx.beginPath(); ctx.arc(clock.cx,clock.cy,clock.r,secToAngle(T-1.7),secToAngle(T+1.7)); ctx.stroke();
+      // green window +/-0.7
+      ctx.strokeStyle='rgba(95,208,138,.55)'; ctx.lineWidth=16;
+      ctx.beginPath(); ctx.arc(clock.cx,clock.cy,clock.r,secToAngle(T-0.7),secToAngle(T+0.7)); ctx.stroke();
+    }
+    // ring
+    ctx.strokeStyle='#2a3543'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.arc(clock.cx,clock.cy,clock.r,0,Math.PI*2); ctx.stroke();
+    // ticks every 5s (game seconds 45..60)
+    ctx.fillStyle='#6f7d8c'; ctx.font='11px -apple-system,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(let k=0;k<60;k+=5){
+      const [x1,y1]=onRing(k,clock.r-2),[x2,y2]=onRing(k,clock.r-11);
+      ctx.strokeStyle='#3a4756'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      if(!blind){
+        const [lx,ly]=onRing(k,clock.r-26);
+        ctx.fillStyle = (T!==null && k===Math.round(T/5)*5)?'#e0b062':'#6f7d8c';
+        ctx.fillText((k===0?'00':k), lx, ly);
+      }
+    }
+    // hand
+    const [hx,hy]=onRing(s, clock.r-8);
+    ctx.strokeStyle='#e8eef5'; ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(clock.cx,clock.cy); ctx.lineTo(hx,hy); ctx.stroke();
+    ctx.fillStyle='#e8eef5'; ctx.beginPath(); ctx.arc(clock.cx,clock.cy,4,0,Math.PI*2); ctx.fill();
+    // center readout
+    const disp = Math.min(Math.floor(s%60),59);
+    if(!blind){
+      ctx.fillStyle='#e8eef5'; ctx.font='700 34px -apple-system,sans-serif';
+      ctx.fillText(':'+String(disp).padStart(2,'0'), clock.cx, clock.cy+46);
+    } else {
+      ctx.fillStyle='#3a4756'; ctx.font='600 15px -apple-system,sans-serif';
+      ctx.fillText('blindl\u00e4ge', clock.cx, clock.cy+46);
+    }
+  }
+
+  function drawField(){
+    const {cx,cy}=field;
+    // camp circle (spawn box)
+    ctx.setLineDash([5,5]); ctx.strokeStyle='#3a4756'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy,46,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#7b8896'; ctx.font='11px -apple-system,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('l\u00e4ger', cx, cy-58);
+    // leash/hero marker to the right
+    const hx = cx+120, hy = cy;
+    ctx.fillStyle='#4b6a86';
+    ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#3a4756'; ctx.setLineDash([3,4]); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(cx+46,cy); ctx.lineTo(hx-9,hy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#7b8896'; ctx.fillText('du', hx, hy-20);
+
+    // creeps: three of them, leash out based on creepOut (0 in camp, 1 near hero)
+    const positions = [[-14,-12],[12,-14],[0,14]];
+    let targetX = hx-22;
+    for(let i=0;i<3;i++){
+      const baseX = cx + positions[i][0], baseY = cy + positions[i][1];
+      const px = baseX + (targetX-baseX)*creepOut;
+      const py = baseY + (hy-baseY)*creepOut*0.6;
+      // creep triangle
+      ctx.fillStyle = i%2? '#8a5a34':'#c98a52';
+      ctx.beginPath();
+      ctx.moveTo(px, py-7); ctx.lineTo(px-6, py+5); ctx.lineTo(px+6, py+5); ctx.closePath(); ctx.fill();
+    }
+
+    // if a fresh camp has spawned (stack landed), show ghost creeps back in the box
+    if(resolved && (outcome==='perfect'||outcome==='good')){
+      ctx.globalAlpha=0.9;
+      const np=[[-10,-8],[10,-10],[0,10]];
+      for(let i=0;i<3;i++){
+        const px=cx+np[i][0], py=cy+np[i][1];
+        ctx.fillStyle = i%2? '#6bd39a':'#8fe3b3';
+        ctx.beginPath(); ctx.moveTo(px,py-7); ctx.lineTo(px-6,py+5); ctx.lineTo(px+6,py+5); ctx.closePath(); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      ctx.fillStyle='#5fd08a'; ctx.font='700 13px -apple-system,sans-serif';
+      ctx.fillText('+1 stack', cx, cy+62);
+    }
+  }
+
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    // subtle center divider
+    ctx.strokeStyle='#1a222c'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(350,30); ctx.lineTo(350,300); ctx.stroke();
+
+    let s = campKey ? nowSecond() : 45;
+    if(running){
+      // metronome tick on each new game-second
+      const cur = Math.floor(s);
+      if(cur !== lastTickS && s < END_S){
+        lastTickS = cur;
+        const T = CAMPS[campKey].target;
+        if(cur === T) beep(880,0.05,'square',0.10);      // the "call" second
+        else beep(340,0.03,'square',0.05);
+      }
+      // creeps leash out once aggro pressed
+      if(pressS!==null){
+        const since = s - pressS;
+        if(outcome==='early'){
+          // walk out then head back before :00
+          creepOut = Math.max(0, Math.sin(Math.min(since,3)/3*Math.PI)); // out and back
+        } else {
+          creepOut = Math.max(0, Math.min(1, since/2.4));
+        }
+      }
+      if(s >= END_S && !resolved){
+        s = END_S;
+        resolveRound();
+      }
+    } else if(!resolved && campKey){
+      s = 45;
+    }
+
+    drawClock(Math.min(s,END_S));
+    drawField();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- controls ----
+  document.getElementById('aggro').onclick = press;
+  window.addEventListener('keydown', e=>{
+    if(e.code==='Space'){ e.preventDefault(); press(); }
+  });
+  const speedEl = document.getElementById('speed'), speedTxt=document.getElementById('speedTxt');
+  function setSpeedTxt(){
+    speedTxt.textContent = (1/speed).toFixed(1)+'\u00d7 fart';
+  }
+  speedEl.oninput = ()=>{ speed = parseFloat(speedEl.value); setSpeedTxt(); };
+  speed = parseFloat(speedEl.value); setSpeedTxt();
+  document.getElementById('blind').onchange = e=>{ blind = e.target.checked; };
+  document.getElementById('sound').onchange = e=>{ sound = e.target.checked; };
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

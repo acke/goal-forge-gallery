@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Veto Window · a Natt prototype</title>
+<style>
+  :root{
+    --bg:#0b0e1a; --bg2:#111634; --ink:#e8ecff; --dim:#8b93c4;
+    --moon:#c7d2ff; --indigo:#6c74ff; --indigo2:#8a90ff;
+    --good:#54e0a6; --warn:#ffcf6b; --danger:#ff6b8b;
+    --card:#161c3a; --line:#242c56;
+    --ghostc:rgba(140,150,255,.55);
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 700px at 78% -8%, #1a2150 0%, var(--bg) 55%) fixed, var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    padding:26px 18px 60px;
+  }
+  .wrap{max-width:860px;margin:0 auto}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+  h1{font-size:26px;margin:0;letter-spacing:.3px;font-weight:700}
+  h1 .moon{filter:drop-shadow(0 0 8px #b9c4ff88)}
+  .sub{color:var(--dim);font-size:13.5px;max-width:640px;margin:4px 0 20px}
+  .sub b{color:var(--moon);font-weight:600}
+
+  /* control strip */
+  .strip{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch;margin-bottom:18px}
+  .panel{background:linear-gradient(180deg,var(--card),#131836);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+  .trust{flex:1 1 320px;min-width:280px}
+  .trust .row{display:flex;justify-content:space-between;align-items:baseline}
+  .trust .lbl{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim)}
+  .trust .val{font-variant-numeric:tabular-nums;font-weight:700;font-size:19px}
+  .bar{height:12px;border-radius:8px;background:#0c1030;border:1px solid var(--line);margin-top:9px;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;width:60%;border-radius:8px;
+    background:linear-gradient(90deg,#4a54d6,var(--indigo2) 60%,#a6adff);
+    transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .bar>span{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--moon);opacity:.55}
+  .speed{flex:1 1 220px;min-width:220px;display:flex;flex-direction:column;justify-content:center}
+  .speed .big{font-size:20px;font-weight:700;color:var(--moon);font-variant-numeric:tabular-nums}
+  .speed .cap{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:1.4px}
+  .speed .note{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.35}
+
+  /* stage */
+  .stage{background:linear-gradient(180deg,#141a3a,#10142e);border:1px solid var(--line);border-radius:20px;
+    padding:20px;min-height:224px;position:relative;overflow:hidden}
+  .stage::before{content:"";position:absolute;inset:0;background:
+    radial-gradient(340px 160px at 20% 0%, #2a327022, transparent 70%);pointer-events:none}
+  .agentline{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12.5px;margin-bottom:14px}
+  .dotpulse{width:9px;height:9px;border-radius:50%;background:var(--indigo2);box-shadow:0 0 0 0 #8a90ff88;animation:pulse 1.8s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #8a90ff77}70%{box-shadow:0 0 0 9px #8a90ff00}100%{box-shadow:0 0 0 0 #8a90ff00}}
+
+  .ghostcard{display:flex;gap:16px;align-items:center;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s}
+  .ghostcard.in{opacity:1;transform:none}
+  .ring{position:relative;flex:0 0 auto;width:104px;height:104px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .kind{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .ring .kind .em{font-size:30px;line-height:1}
+  .ring .kind .sec{font-size:12px;color:var(--moon);font-variant-numeric:tabular-nums;margin-top:2px;font-weight:600}
+  .gbody{flex:1;min-width:0}
+  .gbody .doing{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--indigo2);font-weight:600}
+  .gbody h3{margin:3px 0 4px;font-size:18px;font-weight:650}
+  .gbody p{margin:0;color:var(--dim);font-size:13.5px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    padding:3px 9px;border-radius:999px;margin-top:9px}
+  .tag.rev{background:#12351f;color:var(--good);border:1px solid #1c5a35}
+  .tag.irr{background:#3a2a12;color:var(--warn);border:1px solid #6b4e1c}
+  .tag.des{background:#3a1420;color:var(--danger);border:1px solid #6b2233}
+
+  .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  button{font:inherit;border:0;border-radius:12px;padding:11px 18px;font-weight:650;cursor:pointer;
+    transition:transform .08s,filter .2s;letter-spacing:.2px}
+  button:active{transform:translateY(1px) scale(.99)}
+  .veto{background:linear-gradient(180deg,#ff8098,#e04a6b);color:#26060f}
+  .approve{background:linear-gradient(180deg,#6fe6b0,#3fb488);color:#052316}
+  .ghostbtn{background:#1a2148;color:var(--moon);border:1px solid var(--line)}
+  button:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.4)}
+  .hint{font-size:12px;color:var(--dim);margin-top:10px;min-height:16px}
+
+  /* idle / done */
+  .idle{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px 8px}
+  .idle .em{font-size:40px;filter:drop-shadow(0 0 12px #b9c4ff55)}
+  .idle h3{margin:12px 0 4px;font-size:19px}
+  .idle p{margin:0 0 14px;color:var(--dim);max-width:520px;font-size:14px}
+  .start{background:linear-gradient(180deg,var(--indigo2),#5860e6);color:#fff;padding:12px 26px;font-size:15px}
+
+  /* ledgers */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+  @media(max-width:640px){.cols{grid-template-columns:1fr}}
+  .ledger h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);display:flex;justify-content:space-between}
+  .ledger h4 .n{color:var(--moon)}
+  .ledger ul{list-style:none;margin:0;padding:0;max-height:210px;overflow:auto}
+  .ledger li{font-size:13px;padding:7px 10px;border-radius:9px;margin-bottom:6px;border:1px solid var(--line);display:flex;gap:8px;align-items:flex-start;animation:slidein .3s}
+  @keyframes slidein{from{opacity:0;transform:translateX(-6px)}to{opacity:1}}
+  .ledger li .e{flex:0 0 auto}
+  .ledger.did li{background:#0f1a13}
+  .ledger.did li.appr{background:#181205}
+  .ledger.didnot li{background:#180d13}
+  .ledger li small{color:var(--dim);display:block;font-size:11.5px}
+  .empty{color:#4d5589;font-size:12.5px;font-style:italic;padding:6px 2px}
+
+  footer{margin-top:26px;color:#5b6294;font-size:12px;text-align:center;line-height:1.6}
+  footer b{color:var(--moon)}
+  .kbd{font-family:ui-monospace,Menlo,monospace;background:#141a3a;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:11.5px;color:var(--moon)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="moon">🌙</span> The Veto Window</h1>
+  </header>
+  <p class="sub">
+    An agent is about to do your morning for you. It won't ask permission for everything —
+    that would drown you. Instead each action appears as a <b>ghost</b> with a shrinking ring:
+    your control surface is a <b>window of time</b>. Reversible things commit themselves when
+    the ring runs out. Irreversible things stop and wait for your tap. And the quiet part —
+    <b>trust buys speed</b>: the less you veto, the shorter the windows get.
+  </p>
+
+  <div class="strip">
+    <div class="panel trust">
+      <div class="row">
+        <span class="lbl">Earned trust</span>
+        <span class="val" id="trustVal">60</span>
+      </div>
+      <div class="bar"><i id="trustBar" style="width:60%"></i><span id="trustMark" style="left:60%"></span></div>
+      <div class="note" id="trustNote" style="font-size:12px;color:var(--dim);margin-top:8px">
+        The pale line is where it started. Watch it drift.
+      </div>
+    </div>
+    <div class="panel speed">
+      <div class="cap">Window speed</div>
+      <div class="big" id="speedVal">1.0×</div>
+      <div class="note" id="speedNote">Standard pace. Vetoes slow it down; clean runs speed it up.</div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="idle" id="idle">
+      <div class="em">🫥</div>
+      <h3>The agent is waiting for the go-ahead.</h3>
+      <p>Seven things need doing before your coffee's cold. Some it can just handle.
+         A couple it shouldn't touch without you. Press start and keep a finger near the veto.</p>
+      <button class="start" id="startBtn">Hand it the morning →</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="panel ledger did">
+      <h4>What it did <span class="n" id="didN">0</span></h4>
+      <ul id="didList"></ul>
+      <div class="empty" id="didEmpty">Nothing committed yet.</div>
+    </div>
+    <div class="panel ledger didnot">
+      <h4>What we did <em>not</em> do <span class="n" id="dnN">0</span></h4>
+      <ul id="dnList"></ul>
+      <div class="empty" id="dnEmpty">Vetoes and held actions land here — restraint, made auditable.</div>
+    </div>
+  </div>
+
+  <footer>
+    A prototype from <b>Natt</b> about the human–agent operating model: control as a <i>window</i>, not a wall.
+    <span class="kbd">Space</span> = veto the current ghost. Everything runs offline in this one file.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ----- the morning queue -----------------------------------------------
+  // kind: rev (auto-commits), irr (waits for approve), des (destructive: waits, framed red)
+  const QUEUE = [
+    {em:"📥", title:"Sort the overnight inbox", doing:"Filing", kind:"rev",
+      desc:"Move 23 newsletters to Read-Later, star the two from Christy, leave the rest.",
+      done:"23 mails filed · 2 starred", base:6},
+    {em:"📆", title:"Decline the 08:30 that has no agenda", doing:"Replying", kind:"rev",
+      desc:"Send a polite “can we make this async?” and free the slot.",
+      done:"Meeting declined · slot freed", base:6},
+    {em:"🧾", title:"Pay the Biltema invoice — 1 240 kr", doing:"Preparing payment", kind:"irr",
+      desc:"Money leaves the account. This one it will not do on its own.",
+      done:"1 240 kr paid to Biltema", base:9},
+    {em:"🔌", title:"Precondition the Model Y for 07:15", doing:"Scheduling", kind:"rev",
+      desc:"Warm the cabin and battery for the school run. Costs ~1 kWh, easily undone.",
+      done:"Preconditioning armed · 07:15", base:5},
+    {em:"📤", title:"Send the quarterly deck to the whole team", doing:"Composing", kind:"irr",
+      desc:"14 recipients. You can’t un-send. It will hold at the line and wait for you.",
+      done:"Deck sent to 14 people", base:10},
+    {em:"🗂️", title:"Archive last sprint’s Slack channel", doing:"Archiving", kind:"rev",
+      desc:"Tidy, and reversible — un-archiving is one click if you change your mind.",
+      done:"#sprint-41 archived", base:5},
+    {em:"🗑️", title:"Delete the old client contract folder", doing:"Cleaning up", kind:"des",
+      desc:"Permanent. No recycle bin, no undo. It stops here, red, and asks with both hands.",
+      done:"Folder permanently deleted", base:12},
+  ];
+
+  // ----- state -----------------------------------------------------------
+  let idx = 0;
+  let trust = 60;               // 0..100
+  let running = false;
+  let raf = null, tStart = 0, dur = 0, current = null, phase = "";
+  const startTrust = 60;
+
+  const $ = id => document.getElementById(id);
+  const stage = $("stage");
+
+  // window speed as a function of trust:
+  // high trust -> shorter windows (fast). low trust -> longer (careful).
+  function speedFactor(){
+    // trust 60 => 1.0x. 100 => ~0.55x (fast). 0 => ~1.7x (slow & careful)
+    const f = 1.15 - (trust/100)*0.6;
+    return Math.max(0.5, Math.min(1.8, f));
+  }
+  function windowFor(item){
+    if(item.kind==="rev") return item.base * speedFactor();
+    // irreversible windows shrink less with trust — caution is sticky
+    return item.base * (0.85 + speedFactor()*0.35);
+  }
+
+  function renderTrust(){
+    $("trustVal").textContent = Math.round(trust);
+    $("trustBar").style.width = trust + "%";
+    const sf = speedFactor();
+    const inv = (1/sf);
+    $("speedVal").textContent = inv.toFixed(2).replace(/0$/,'') + "×";
+    let note;
+    if(trust>=82) note = "Flying. It’s earned the short leash — windows are tight, so is your reaction time.";
+    else if(trust>=68) note = "Warmed up. Clean runs are buying it speed.";
+    else if(trust>=45) note = "Standard pace. Vetoes slow it down; clean runs speed it up.";
+    else if(trust>=25) note = "Cautious. You’ve pushed back, so it’s giving you longer to look.";
+    else note = "On a very short leash. Long windows, everything double-checked with you.";
+    $("speedNote").textContent = note;
+  }
+
+  function bumpTrust(delta){
+    trust = Math.max(0, Math.min(100, trust + delta));
+    renderTrust();
+  }
+
+  // ----- ledgers ---------------------------------------------------------
+  function addDid(item, approved){
+    $("didEmpty").style.display="none";
+    const ul = $("didList");
+    const li = document.createElement("li");
+    if(approved) li.className="appr";
+    li.innerHTML = `<span class="e">${item.em}</span><span>${item.done}
+      <small>${approved ? "you approved it" : "auto-committed inside the window"}</small></span>`;
+    ul.prepend(li);
+    $("didN").textContent = ul.children.length;
+  }
+  function addDidNot(item, reason){
+    $("dnEmpty").style.display="none";
+    const ul = $("dnList");
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="e">✋</span><span>${item.title}
+      <small>${reason}</small></span>`;
+    ul.prepend(li);
+    $("dnN").textContent = ul.children.length;
+  }
+
+  // ----- the ghost stage -------------------------------------------------
+  const R = 46, C = 2*Math.PI*R;
+
+  function showGhost(item){
+    const kindTag = item.kind==="rev" ? '<span class="tag rev">reversible</span>'
+                  : item.kind==="des" ? '<span class="tag des">destructive · no undo</span>'
+                  : '<span class="tag irr">irreversible</span>';
+    const ringColor = item.kind==="rev" ? "var(--good)" : item.kind==="des" ? "var(--danger)" : "var(--warn)";
+    stage.innerHTML = `
+      <div class="agentline"><span class="dotpulse"></span> agent · working the queue autonomously · ${idx+1} of ${QUEUE.length}</div>
+      <div class="ghostcard" id="gc">
+        <div class="ring">
+          <svg width="104" height="104" viewBox="0 0 104 104">
+            <circle cx="52" cy="52" r="${R}" fill="none" stroke="#1c2350" stroke-width="7"/>
+            <circle id="ringArc" cx="52" cy="52" r="${R}" fill="none" stroke="${ringColor}" stroke-width="7"
+                    stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="0"/>
+          </svg>
+          <div class="kind"><div class="em">${item.em}</div><div class="sec" id="secLbl"></div></div>
+        </div>
+        <div class="gbody">
+          <div class="doing">${item.doing}…</div>
+          <h3>${item.title}</h3>
+          <p>${item.desc}</p>
+          ${kindTag}
+        </div>
+      </div>
+      <div class="actions" id="acts"></div>
+      <div class="hint" id="hint"></div>`;
+    requestAnimationFrame(()=> $("gc").classList.add("in"));
+    return {arc:$("ringArc"), sec:$("secLbl"), acts:$("acts"), hint:$("hint")};
+  }
+
+  function runItem(){
+    if(idx >= QUEUE.length){ finish(); return; }
+    const item = QUEUE[idx];
+    current = item;
+    const els = showGhost(item);
+    dur = windowFor(item) * 1000;
+    tStart = performance.now();
+    phase = "counting";
+
+    const isAuto = item.kind==="rev";
+    // buttons
+    els.acts.innerHTML =
+      `<button class="veto" id="vetoBtn">✋ Veto</button>` +
+      (isAuto
+        ? `<button class="ghostbtn" id="letBtn">Let it run ✓</button>`
+        : `<button class="approve" id="apprBtn" disabled>Approve at the line</button>`);
+    els.hint.textContent = isAuto
+      ? "Reversible — it will commit itself when the ring empties, unless you stop it."
+      : (item.kind==="des"
+          ? "Destructive — the ring fills but it will NOT act. It needs your explicit tap."
+          : "Irreversible — it will hold at the line and wait for your approval.");
+
+    $("vetoBtn").onclick = ()=> veto(item);
+    if(isAuto) $("letBtn").onclick = ()=> commit(item, false);
+    else {
+      $("apprBtn").onclick = ()=> commit(item, true);
+    }
+
+    function frame(now){
+      const elapsed = now - tStart;
+      let p = Math.min(1, elapsed/dur);
+      // ring depletes for auto (counts DOWN the window); fills toward the line for irr
+      if(isAuto){
+        els.arc.setAttribute("stroke-dashoffset", (C*p).toFixed(2)); // empties
+      } else {
+        els.arc.setAttribute("stroke-dashoffset", (C*(1-p)).toFixed(2)); // fills
+      }
+      const remain = Math.max(0, (dur-elapsed)/1000);
+      els.sec.textContent = isAuto ? remain.toFixed(1)+"s" : (p<1? remain.toFixed(1)+"s" : "•");
+      if(p >= 1){
+        if(isAuto){ commit(item, false); return; }
+        // irr/des: reached the line — arm approval, stop counting
+        if(phase==="counting"){
+          phase="armed";
+          els.sec.textContent="ready";
+          const ab = $("apprBtn"); if(ab){ ab.disabled=false; }
+          els.hint.textContent = item.kind==="des"
+            ? "At the line. Nothing has happened yet. Approve with intent — there is no undo."
+            : "At the line. It’s waiting on you — approve to send, or veto to hold it back.";
+          els.arc.style.filter="drop-shadow(0 0 6px "+(item.kind==="des"?"#ff6b8b":"#ffcf6b")+")";
+        }
+        return; // stop the raf; stay armed until user acts
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  function stopRaf(){ if(raf){ cancelAnimationFrame(raf); raf=null; } }
+
+  function commit(item, approved){
+    if(!running) return;
+    stopRaf();
+    addDid(item, approved);
+    bumpTrust(approved ? +5 : +4);       // clean pass earns trust
+    idx++;
+    nextSoon();
+  }
+
+  function veto(item){
+    if(!running) return;
+    stopRaf();
+    const reason = phase==="armed"
+      ? "you held it at the line"
+      : "you vetoed inside the window";
+    addDidNot(item, reason);
+    bumpTrust(item.kind==="rev" ? -9 : -6); // vetoing a safe action dents trust more
+    idx++;
+    nextSoon();
+  }
+
+  function nextSoon(){
+    phase="gap";
+    stage.querySelector("#gc") && stage.querySelector("#gc").classList.remove("in");
+    setTimeout(()=>{ if(running) runItem(); }, 380);
+  }
+
+  function finish(){
+    running = false;
+    const did = $("didList").children.length;
+    const held = $("dnList").children.length;
+    let verdict;
+    if(held===0) verdict = "You let it run the whole board without a single veto. That’s a lot of trust — the windows are short now, so make sure that trust was earned, not just tired.";
+    else if(held<=2) verdict = "You caught a couple and let the rest fly. That’s the sweet spot: restraint where it counts, speed everywhere else.";
+    else verdict = "You held a lot back. Nothing wrong with that — but notice how the windows grew to give you room. Caution has a price in pace, and now you’ve felt it.";
+    stage.innerHTML = `
+      <div class="idle">
+        <div class="em">🌙</div>
+        <h3>Morning handed back.</h3>
+        <p><b style="color:var(--moon)">${did}</b> done, <b style="color:var(--moon)">${held}</b> held.
+           ${verdict}</p>
+        <p style="color:#5b6294;font-size:13px;max-width:560px">
+           The point isn’t the tasks — it’s the shape of control. You never approved everything,
+           and you never micromanaged everything. You set a <i>window</i>, and trust decided how wide.</p>
+        <button class="start" id="againBtn">Run the morning again ↻</button>
+      </div>`;
+    $("againBtn").onclick = reset;
+  }
+
+  function reset(){
+    idx=0; trust=startTrust; running=true; phase="";
+    $("didList").innerHTML=""; $("dnList").innerHTML="";
+    $("didN").textContent="0"; $("dnN").textContent="0";
+    $("didEmpty").style.display=""; $("dnEmpty").style.display="";
+    renderTrust();
+    runItem();
+  }
+
+  // keyboard: space vetoes current
+  document.addEventListener("keydown", e=>{
+    if(e.code==="Space" && running){
+      const vb = document.getElementById("vetoBtn");
+      if(vb){ e.preventDefault(); vb.click(); }
+    }
+  });
+
+  $("startBtn").onclick = ()=>{ running=true; runItem(); };
+  renderTrust();
+})();
+</script>
+</body>
+</html>
