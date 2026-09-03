@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bromskraft — the regen lab</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121824; --panel2:#0e131d;
+    --ink:#e8edf5; --dim:#8a97ab; --line:#233047;
+    --green:#3ddc84; --green2:#0f5a34; --heat:#ff7a45; --heat2:#5a2410;
+    --accent:#7cc0ff; --cold:#79c8ff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#16202f 0%,var(--bg) 55%);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:920px;margin:0 auto;padding:26px 18px 60px;}
+  header h1{font-size:26px;margin:0 0 4px;letter-spacing:.2px}
+  header .sub{color:var(--dim);font-size:14px;margin:0 0 20px;line-height:1.5}
+  .badge{display:inline-block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#0a0e14;
+    background:linear-gradient(90deg,var(--green),#9be8bf);padding:3px 9px;border-radius:999px;font-weight:700;vertical-align:middle;margin-left:8px}
+
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 8px;position:relative;overflow:hidden}
+  .road{position:relative;height:150px;border-radius:12px;
+    background:linear-gradient(180deg,#0d1420 0%,#0d1420 46%,#1b2536 46%,#1b2536 100%);
+    border:1px solid var(--line);overflow:hidden}
+  .sky-glow{position:absolute;top:-40px;right:-40px;width:200px;height:120px;background:radial-gradient(closest-side,rgba(124,192,255,.14),transparent);pointer-events:none}
+  .lane{position:absolute;left:0;right:0;top:74%;height:3px;
+    background:repeating-linear-gradient(90deg,#3a4a63 0 26px,transparent 26px 52px);opacity:.7}
+  .light{position:absolute;right:22px;top:16px;width:26px;height:64px;background:#05080d;border-radius:6px;border:1px solid #2a3a52;padding:5px 0;text-align:center}
+  .bulb{width:14px;height:14px;border-radius:50%;margin:2px auto;background:#20262f;transition:background .2s,box-shadow .2s}
+  .bulb.red.on{background:#ff4d4d;box-shadow:0 0 12px #ff4d4d}
+  .bulb.grn.on{background:var(--green);box-shadow:0 0 12px var(--green)}
+  .car{position:absolute;bottom:20px;left:2%;width:150px;transition:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+  .car .flow{opacity:0;transition:opacity .15s}
+  .dist-tag{position:absolute;bottom:2px;left:8px;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums}
+
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  @media(max-width:640px){.controls{grid-template-columns:1fr}}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 15px}
+  .card h3{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700}
+  .speedrow{display:flex;align-items:center;gap:12px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;
+    background:linear-gradient(90deg,var(--accent),#2b4a6b);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+    background:#fff;border:3px solid var(--accent);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  .spd{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;min-width:118px;text-align:right}
+  .spd small{font-size:14px;color:var(--dim);font-weight:600}
+
+  .temp{display:flex;gap:8px;margin-top:4px}
+  .temp button{flex:1;padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:#0b111b;color:var(--dim);
+    font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+  .temp button.act[data-t=warm]{background:linear-gradient(90deg,#5a2f10,#7a4a1e);border-color:#a86a2e;color:#ffd9b0}
+  .temp button.act[data-t=cold]{background:linear-gradient(90deg,#0f3350,#155a7a);border-color:#2f9fd4;color:#cdeeff}
+
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  .modes button{padding:16px 8px;border-radius:14px;border:1px solid var(--line);background:#0c1420;color:var(--ink);
+    font-size:14px;font-weight:700;cursor:pointer;transition:.12s;line-height:1.35}
+  .modes button:hover{transform:translateY(-2px);border-color:#3a5170}
+  .modes button:active{transform:translateY(0)}
+  .modes button .em{display:block;font-size:24px;margin-bottom:4px}
+  .modes button .hint{display:block;font-size:11px;color:var(--dim);font-weight:500;margin-top:3px}
+  .modes button:disabled{opacity:.4;cursor:wait}
+
+  .gauges{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .tank{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;position:relative;overflow:hidden}
+  .tank .lab{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:700}
+  .tank .big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+  .tank .unit{font-size:14px;color:var(--dim);font-weight:600}
+  .bar{height:12px;border-radius:8px;background:#0a0e16;margin-top:10px;overflow:hidden;border:1px solid #1c2740}
+  .bar > i{display:block;height:100%;width:0;border-radius:8px;transition:width .05s linear}
+  .tank.rec .bar > i{background:linear-gradient(90deg,var(--green2),var(--green))}
+  .tank.heat .bar > i{background:linear-gradient(90deg,var(--heat2),var(--heat))}
+  .tank .pct{font-size:12px;color:var(--dim);margin-top:6px;font-variant-numeric:tabular-nums}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+  .stat .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:11px;color:var(--dim);margin-top:2px}
+
+  .insight{margin-top:16px;background:linear-gradient(180deg,#101a26,#0c141d);border:1px solid #1f3348;border-left:3px solid var(--green);
+    border-radius:12px;padding:14px 16px;font-size:14.5px;line-height:1.6;min-height:24px}
+  .insight .who{color:var(--green);font-weight:700}
+  .insight.cold{border-left-color:var(--cold)}
+  .insight.hot{border-left-color:var(--heat)}
+  footer{color:#5b6678;font-size:12px;margin-top:26px;text-align:center;line-height:1.6}
+  footer b{color:#7c8aa0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Bromskraft <span class="badge">regen lab</span></h1>
+    <p class="sub">Every time you slow the Model Y, some of that speed can flow back into the battery — and some of it just becomes heat in the discs. This little lab lets you watch the split happen in real time. Pick a speed, pick a battery temperature, then brake three different ways and see who wins.</p>
+  </header>
+
+  <div class="stage">
+    <div class="sky-glow"></div>
+    <div class="road" id="road">
+      <div class="lane"></div>
+      <div class="light"><div class="bulb red on" id="red"></div><div class="bulb grn" id="grn"></div></div>
+      <svg class="car" id="car" viewBox="0 0 200 90" xmlns="http://www.w3.org/2000/svg">
+        <!-- Model Y-ish silhouette -->
+        <path d="M10,64 C14,52 30,50 40,49 C55,34 78,26 100,26 C124,26 146,32 162,49 C176,51 190,54 192,63 L192,70 C192,73 189,75 186,75 L14,75 C11,75 8,73 8,70 Z"
+              fill="#e9edf3"/>
+        <path d="M52,49 C64,37 80,32 100,32 C118,32 136,37 150,49 Z" fill="#2b3648"/>
+        <path d="M56,49 C66,40 82,36 99,36 L99,49 Z" fill="#3d4b62"/>
+        <path d="M103,36 C120,37 136,42 146,49 L103,49 Z" fill="#3d4b62"/>
+        <circle cx="52" cy="75" r="15" fill="#0b0e14" stroke="#39445a" stroke-width="3"/>
+        <circle cx="52" cy="75" r="5" fill="#20262f"/>
+        <circle cx="152" cy="75" r="15" fill="#0b0e14" stroke="#39445a" stroke-width="3"/>
+        <circle cx="152" cy="75" r="5" fill="#20262f"/>
+        <!-- energy flow to battery (rear, left) -->
+        <g class="flow" id="flowRec">
+          <circle cx="12" cy="58" r="4" fill="#3ddc84"/><circle cx="0" cy="60" r="3" fill="#3ddc84" opacity=".7"/>
+        </g>
+        <!-- heat flow (wheels) -->
+        <g class="flow" id="flowHeat">
+          <circle cx="52" cy="92" r="3" fill="#ff7a45"/><circle cx="152" cy="92" r="3" fill="#ff7a45"/>
+        </g>
+      </svg>
+      <div class="dist-tag" id="distTag">standing still · 0 m</div>
+    </div>
+
+    <div class="controls">
+      <div class="card">
+        <h3>Approach speed</h3>
+        <div class="speedrow">
+          <input type="range" id="spd" min="30" max="130" step="5" value="90">
+          <div class="spd"><span id="spdVal">90</span><small> km/h</small></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Battery temperature</h3>
+        <div class="temp" id="temp">
+          <button data-t="warm" class="act">☀️ Warm &amp; ready<br><span style="font-size:11px;color:#e9c69a">full regen · ~70 kW</span></button>
+          <button data-t="cold">❄️ Cold morning<br><span style="font-size:11px;color:#9fd8ff">reduced regen · ~25 kW</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modes">
+      <button data-m="coast"><span class="em">🅾️</span>Coast<span class="hint">foot off everything (neutral)</span></button>
+      <button data-m="regen"><span class="em">🔋</span>One-pedal<span class="hint">gentle lift, let it regen</span></button>
+      <button data-m="panic"><span class="em">🛑</span>Panic stop<span class="hint">slam the brake pedal</span></button>
+    </div>
+
+    <div class="gauges">
+      <div class="tank rec">
+        <div class="lab">⚡ Recovered → battery</div>
+        <div class="big"><span id="recVal">0.000</span></div>
+        <div class="unit">kWh</div>
+        <div class="bar"><i id="recBar"></i></div>
+        <div class="pct" id="recPct">—</div>
+      </div>
+      <div class="tank heat">
+        <div class="lab">🔥 Wasted → heat</div>
+        <div class="big"><span id="heatVal">0.000</span></div>
+        <div class="unit">kWh</div>
+        <div class="bar"><i id="heatBar"></i></div>
+        <div class="pct" id="heatPct">—</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="v" id="stDist">—</div><div class="k">stopping distance</div></div>
+      <div class="stat"><div class="v" id="stTime">—</div><div class="k">time to stop</div></div>
+      <div class="stat"><div class="v" id="stRange">—</div><div class="k">range handed back</div></div>
+    </div>
+
+    <div class="insight" id="insight">
+      <span class="who">Natt:</span> Set a speed, tell me if the battery's warm or frozen, then brake three ways and compare. The battery only accepts so much power at once — that cap is where the whole story lives.
+    </div>
+  </div>
+
+  <footer>
+    Model Y Performance ≈ <b>2050&nbsp;kg</b> · KE&nbsp;=&nbsp;½mv² · regen return efficiency ≈ <b>70%</b> · consumption ≈ <b>160&nbsp;Wh/km</b><br>
+    A physically honest toy, not a dyno. Real regen also depends on state-of-charge, grade and traction — this ignores those to keep the one lesson clean. · Built by Natt 🌙
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var M = 2050;            // kg, Model Y Performance w/ driver
+  var EFF = 0.70;          // mechanical -> stored electrical
+  var CAP = {warm:70000, cold:25000}; // W electrical regen ceiling
+  var WH_PER_KM = 160;     // consumption for "range handed back"
+  var A = {coast:0.22, regen:1.8, panic:8.0}; // m/s^2 target decel
+  var FRES = 450;          // N rolling+aero for the coast case
+
+  var temp = 'warm';
+  var busy = false;
+  var raf = null;
+
+  var $ = function(id){return document.getElementById(id);};
+  var spd=$('spd'), spdVal=$('spdVal'), car=$('car'), distTag=$('distTag'),
+      recVal=$('recVal'), heatVal=$('heatVal'), recBar=$('recBar'), heatBar=$('heatBar'),
+      recPct=$('recPct'), heatPct=$('heatPct'), stDist=$('stDist'), stTime=$('stTime'),
+      stRange=$('stRange'), insight=$('insight'), red=$('red'), grn=$('grn'),
+      flowRec=$('flowRec'), flowHeat=$('flowHeat');
+
+  spd.addEventListener('input', function(){ spdVal.textContent = spd.value; });
+
+  Array.prototype.forEach.call(document.querySelectorAll('#temp button'), function(b){
+    b.addEventListener('click', function(){
+      if(busy) return;
+      temp = b.getAttribute('data-t');
+      Array.prototype.forEach.call(document.querySelectorAll('#temp button'), function(x){x.classList.remove('act');});
+      b.classList.add('act');
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.modes button'), function(b){
+    b.addEventListener('click', function(){ if(!busy) run(b.getAttribute('data-m')); });
+  });
+
+  // ---- physics ----
+  function simulate(v0, mode){
+    var dt=0.01, v=v0, x=0, t=0, rec=0;
+    var cap = CAP[temp], capMech = cap/EFF;
+    var a = A[mode];
+    var samples=[{t:0,x:0,rec:0,v:v0}];
+    var KE0 = 0.5*M*v0*v0;
+    var guard=0;
+    while(v>0.06 && guard<40000){
+      guard++;
+      if(mode==='coast'){
+        v = Math.max(0, v - (FRES/M)*dt);
+        x += v*dt; t+=dt;
+        samples.push({t:t,x:x,rec:0,v:v});
+        if(t>=25) break;           // it barely slows — that IS the point
+        continue;
+      }
+      var Ftotal = M*a;
+      var Fmotor = Math.min(Ftotal, capMech/Math.max(v,0.1));
+      var elec = Math.min(Fmotor*v*EFF, cap);
+      rec += elec*dt;
+      v = Math.max(0, v - a*dt);
+      x += v*dt; t+=dt;
+      samples.push({t:t,x:x,rec:rec,v:v});
+    }
+    var stopped = (mode!=='coast');
+    var wasted = stopped ? Math.max(0, KE0 - rec) : 0;
+    return {samples:samples, rec:rec, wasted:wasted, dist:x, time:t, KE0:KE0,
+            vEnd:v, stopped:stopped, mode:mode};
+  }
+
+  var J2KWH = 1/3.6e6;
+
+  // ---- playback ----
+  function run(mode){
+    if(raf) cancelAnimationFrame(raf);
+    busy=true;
+    setButtons(true);
+    var v0 = parseFloat(spd.value)/3.6;
+    var sim = simulate(v0, mode);
+    var n = sim.samples.length;
+    var roadW = $('road').clientWidth;
+    var carW = car.clientWidth;
+    var travel = roadW - carW - 12;      // px available
+    // reference distance to map metres->px (scale so worst case fits)
+    var maxRef = Math.max(sim.dist, 120);
+    var recMax = sim.KE0 * EFF;           // best case recoverable, for bar scale
+    var heatMax = sim.KE0;                // for bar scale
+
+    grn.classList.remove('on'); red.classList.add('on');
+    flowRec.style.opacity=0; flowHeat.style.opacity=0;
+
+    var DUR = mode==='panic'?900 : mode==='coast'?1600 : 1400; // ms
+    var start=null;
+
+    function frame(ts){
+      if(!start) start=ts;
+      var f = Math.min(1,(ts-start)/DUR);
+      var idx = Math.floor(f*(n-1));
+      var s = sim.samples[idx];
+
+      // car position (metres -> fraction of a reference so it visibly travels)
+      var px = 8 + (s.x/maxRef)*travel;
+      car.style.transform = 'translateX('+px+'px)';
+
+      var recK = s.rec*J2KWH;
+      recVal.textContent = recK.toFixed(3);
+      var heatSoFar = (mode==='coast')?0:Math.max(0,(0.5*M*(v0*v0 - s.v*s.v))*J2KWH - recK);
+      heatVal.textContent = heatSoFar.toFixed(3);
+      recBar.style.width  = Math.min(100,(recK/(recMax*J2KWH||1))*100)+'%';
+      heatBar.style.width = Math.min(100,(heatSoFar/(heatMax*J2KWH||1))*100)+'%';
+
+      // flow cues
+      if(mode!=='coast'){
+        flowRec.style.opacity = (s.rec>0)?1:0;
+        flowHeat.style.opacity = (heatSoFar>0.001)?1:0;
+      }
+      distTag.textContent = (s.x).toFixed(0)+' m · '+(s.v*3.6).toFixed(0)+' km/h';
+
+      if(f<1){ raf=requestAnimationFrame(frame); }
+      else finish(sim, recMax);
+    }
+    raf=requestAnimationFrame(frame);
+  }
+
+  function finish(sim, recMax){
+    var recK = sim.rec*J2KWH;
+    var heatK = sim.wasted*J2KWH;
+    var KE0K = sim.KE0*J2KWH;
+    recVal.textContent = recK.toFixed(3);
+    recBar.style.width = Math.min(100,(recK/(recMax*J2KWH||1))*100)+'%';
+
+    if(sim.stopped){
+      grn.classList.remove('on'); grn.classList.add('on'); red.classList.remove('on');
+      heatVal.textContent = heatK.toFixed(3);
+      heatBar.style.width = Math.min(100,(heatK/(KE0K||1))*100)+'%';
+      var pct = KE0K>0 ? Math.round(recK/KE0K*100) : 0;
+      recPct.textContent = pct+'% of the energy came back';
+      heatPct.textContent = (100-pct)+'% lost as heat';
+      stDist.textContent = sim.dist.toFixed(0)+' m';
+      stTime.textContent = sim.time.toFixed(1)+' s';
+      stRange.textContent = '+'+((recK*1000/WH_PER_KM)).toFixed(2)+' km';
+      flowRec.style.opacity = recK>0?1:0;
+      flowHeat.style.opacity = heatK>0.001?1:0;
+      distTag.textContent = 'stopped · '+sim.dist.toFixed(0)+' m';
+    } else {
+      // coast — never stopped within the window
+      grn.classList.remove('on'); red.classList.add('on');
+      heatVal.textContent='0.000'; heatBar.style.width='0%';
+      recPct.textContent='0% recovered'; heatPct.textContent='still all kinetic';
+      stDist.textContent = sim.dist.toFixed(0)+' m';
+      stTime.textContent = '25.0 s+';
+      stRange.textContent = '+0.00 km';
+      flowRec.style.opacity=0; flowHeat.style.opacity=0;
+      distTag.textContent = 'still rolling · '+(sim.vEnd*3.6).toFixed(0)+' km/h';
+    }
+    setInsight(sim, recK, heatK, KE0K);
+    busy=false; setButtons(false);
+  }
+
+  function setInsight(sim, recK, heatK, KE0K){
+    var v = Math.round(parseFloat(spd.value));
+    var pct = KE0K>0?Math.round(recK/KE0K*100):0;
+    var cls='', html='';
+    if(sim.mode==='coast'){
+      cls='cold';
+      html='<span class="who">Natt:</span> True coasting recovers <b>nothing</b> — foot off both pedals and all that speed just stays speed. After 25 seconds you\u2019ve rolled '+sim.dist.toFixed(0)+' m and you\u2019re <b>still doing '+(sim.vEnd*3.6).toFixed(0)+' km/h</b>. That energy isn\u2019t gone, it\u2019s waiting for a brake. Which is exactly why one-pedal driving feels like free money.';
+    } else if(sim.mode==='regen'){
+      if(temp==='warm'){
+        cls='';
+        html='<span class="who">Natt:</span> A warm battery, a gentle lift — this is the sweet spot. <b>'+pct+'%</b> of your '+v+' km/h flows straight back in, worth <b>+'+((recK*1000/WH_PER_KM)).toFixed(2)+' km</b> of range from a single stop. Do this twenty times on a Malmö school run and you\u2019ve quietly banked a few free kilometres before lunch.';
+      } else {
+        cls='cold';
+        html='<span class="who">Natt:</span> Same gentle lift, but the battery\u2019s cold and can only swallow ~25 kW. So it takes what it can (<b>'+pct+'%</b>) and the friction brakes quietly cover the rest \u2014 <b>'+heatK.toFixed(3)+' kWh</b> of it, turned to heat. That\u2019s the dashed regen line on your dash on a frosty morning. Precondition on the app and you\u2019d claw most of it back.';
+      }
+    } else { // panic
+      cls='hot';
+      html='<span class="who">Natt:</span> Here\u2019s the twist people don\u2019t expect: even in an EV, a panic stop from '+v+' km/h is <b>mostly wasted</b>. The motor can only absorb ~'+(CAP[temp]/1000)+' kW, and slamming the pedal demands far more \u2014 so <b>'+(100-pct)+'%</b> screams straight into the disc brakes as heat. Only <b>'+pct+'%</b> made it home. Regen is a marathon runner, not a sprinter.';
+    }
+    insight.className='insight '+cls;
+    insight.innerHTML=html;
+  }
+
+  function setButtons(on){
+    Array.prototype.forEach.call(document.querySelectorAll('.modes button'), function(b){ b.disabled=on; });
+  }
+})();
+</script>
+</body>
+</html>
