@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Familjeklang 🌙</title>
+<style>
+  :root{
+    --bg:#0b1026; --bg2:#141b3d; --ink:#eef2ff; --muted:#9fb0e0;
+    --line:#2a3568; --card:#161e42; --glow:#7aa2ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 700px at 80% -10%, #1c2a63 0%, transparent 60%),
+      radial-gradient(900px 600px at 10% 110%, #241a52 0%, transparent 55%),
+      linear-gradient(180deg,#080c20 0%, #0b1026 100%);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .stars i{position:absolute;width:2px;height:2px;border-radius:50%;background:#cdd9ff;opacity:.5;animation:tw 4s ease-in-out infinite}
+  @keyframes tw{0%,100%{opacity:.15}50%{opacity:.75}}
+  .wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:34px 20px 70px}
+  header h1{font-size:34px;margin:0 0 4px;letter-spacing:.5px}
+  header .sub{color:var(--muted);font-size:15px;line-height:1.5;max-width:640px}
+  .moon{font-size:30px;vertical-align:-2px}
+  .panel{
+    background:linear-gradient(180deg,var(--card),#121a3c);
+    border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:22px;
+    box-shadow:0 14px 40px rgba(0,0,0,.35);
+  }
+  .panel h2{margin:0 0 4px;font-size:16px;letter-spacing:.4px}
+  .panel .hint{color:var(--muted);font-size:13px;margin:0 0 14px}
+  .people{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{
+    display:flex;align-items:center;gap:9px;
+    background:#1b2450;border:1px solid var(--line);color:var(--ink);
+    padding:9px 14px 9px 11px;border-radius:999px;font-size:15px;cursor:pointer;
+    transition:transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+    user-select:none;
+  }
+  .chip:hover{transform:translateY(-2px)}
+  .chip .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 10px currentColor}
+  .chip.sel{border-color:var(--glow);box-shadow:0 0 0 2px rgba(122,162,255,.25), 0 8px 22px rgba(0,0,0,.3)}
+  .chip.playing{animation:pulse .9s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px rgba(122,162,255,.15)}50%{box-shadow:0 0 0 6px rgba(122,162,255,.35)}}
+  .chip .x{opacity:.5;font-size:13px;margin-left:2px}
+  .chip .x:hover{opacity:1}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+  input[type=text]{
+    background:#0e1533;border:1px solid var(--line);color:var(--ink);
+    padding:11px 14px;border-radius:12px;font-size:15px;flex:1;min-width:180px;
+  }
+  input::placeholder{color:#6d7cae}
+  button.act{
+    background:linear-gradient(180deg,#3a63d8,#2a4fbf);color:#fff;border:none;
+    padding:11px 18px;border-radius:12px;font-size:15px;cursor:pointer;font-weight:600;
+    box-shadow:0 8px 20px rgba(42,79,191,.4);transition:transform .12s ease, filter .2s;
+  }
+  button.act:hover{transform:translateY(-2px);filter:brightness(1.08)}
+  button.ghost{background:#1b2450;border:1px solid var(--line);color:var(--muted);
+    padding:11px 16px;border-radius:12px;font-size:14px;cursor:pointer}
+  button.ghost:hover{color:var(--ink);border-color:var(--glow)}
+  .big{
+    display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+    margin-top:4px;
+  }
+  .big .fam{
+    background:linear-gradient(90deg,#7a3ff0,#3a63d8,#2fb3c7);
+    padding:14px 22px;border-radius:14px;font-size:17px;font-weight:700;color:#fff;
+    border:none;cursor:pointer;box-shadow:0 10px 26px rgba(58,99,216,.45);
+    transition:transform .12s ease, filter .2s;
+  }
+  .big .fam:hover{transform:translateY(-2px);filter:brightness(1.08)}
+  .big .fam:disabled{opacity:.5;cursor:default;filter:grayscale(.3);transform:none}
+  canvas{width:100%;height:220px;display:block;border-radius:14px;background:#080d24;border:1px solid var(--line);margin-top:6px}
+  .nowplay{color:var(--muted);font-size:14px;min-height:20px;margin-top:12px;text-align:center;transition:color .3s}
+  .nowplay b{color:var(--ink)}
+  .footnote{color:#6f7fb5;font-size:12.5px;line-height:1.55;margin-top:26px;text-align:center}
+  .natt{font-style:italic;color:#b9c6f5}
+  .legend{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5}
+  @media (max-width:520px){header h1{font-size:27px}}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+<div class="wrap">
+  <header>
+    <h1><span class="moon">🌙</span> Familjeklang</h1>
+    <p class="sub">Varje namn blir en liten melodi. Bokstäverna faller ner på en pentatonisk skala &mdash; den skala som aldrig kan låta fel &mdash; så allas låt klingar rent. Tryck på ett namn för att höra det. Och sen: spela hela familjen på en gång, så flätas låtarna ihop till en <b>kanon</b>.</p>
+  </header>
+
+  <section class="panel">
+    <h2>Familjens röster</h2>
+    <p class="hint">Klicka på ett namn för att höra just den personens signaturmelodi. Klicka igen för att markera den till familjelåten.</p>
+    <div class="people" id="people"></div>
+    <div class="row">
+      <input type="text" id="newName" placeholder="Lägg till ett namn… (t.ex. en kompis)" maxlength="20" autocomplete="off">
+      <button class="act" id="addBtn">Lägg till</button>
+    </div>
+    <p class="legend" id="legend"></p>
+  </section>
+
+  <section class="panel">
+    <div class="big">
+      <div>
+        <h2 style="margin-bottom:2px">Familjelåten</h2>
+        <p class="hint" style="margin:0">Markera två eller fler namn ovan &mdash; de spelas som en runda, en efter en, och lägger sig i lager.</p>
+      </div>
+      <button class="fam" id="famBtn" disabled>▶ Spela familjen</button>
+    </div>
+    <canvas id="viz" width="820" height="220"></canvas>
+    <div class="nowplay" id="now">Tryck på ett namn för att börja.</div>
+  </section>
+
+  <p class="footnote">
+    <span class="natt">Byggt en natt när alla sov. Ljudet görs live i din webbläsare &mdash; inget internet, inga filer, bara matematik som råkar låta som en klockspelslåda.</span><br>
+    Samma namn ger alltid samma melodi. Prova att stava ditt namn på olika sätt och hör skillnaden. — Natt 🌙
+  </p>
+</div>
+
+<script>
+"use strict";
+(function(){
+  // ---------- starfield ----------
+  var sf = document.getElementById('stars');
+  for(var i=0;i<70;i++){
+    var s=document.createElement('i');
+    s.style.left=(Math.random()*100)+'%';
+    s.style.top=(Math.random()*100)+'%';
+    s.style.animationDelay=(Math.random()*4)+'s';
+    s.style.transform='scale('+(0.6+Math.random()*1.4)+')';
+    sf.appendChild(s);
+  }
+
+  // ---------- audio ----------
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null;
+  function audio(){ if(!ctx){ ctx = new AC(); } if(ctx.state==='suspended'){ ctx.resume(); } return ctx; }
+
+  // C major pentatonic across two-and-a-bit octaves — every note plays nice with every other.
+  var SCALE = [261.63,293.66,329.63,392.00,440.00, 523.25,587.33,659.25,783.99,880.00, 1046.50];
+
+  // Deterministic: string -> array of note indices. Letters only; each letter picks a scale degree.
+  function notesFor(name){
+    var clean = name.toLowerCase().replace(/[^a-zåäöéèü]/g,'');
+    if(!clean) clean = name.toLowerCase().replace(/[^a-z0-9]/g,'') || 'x';
+    var out=[];
+    for(var i=0;i<clean.length;i++){
+      var c = clean.charCodeAt(i);
+      out.push(c % SCALE.length);
+    }
+    // keep melodies to a friendly length; long names get a gentle trim
+    if(out.length>9) out = out.slice(0,9);
+    if(out.length<3) out.push(out[0], (out[0]+2)%SCALE.length); // tiny names get a little tail
+    return out;
+  }
+
+  // Deterministic hue from a name, for its colour.
+  function hueFor(name){
+    var h=0; for(var i=0;i<name.length;i++){ h=(h*31 + name.charCodeAt(i))%360; }
+    return h;
+  }
+
+  // Play one note (soft bell: two detuned oscillators + gentle envelope).
+  function ping(freq, at, dur, gainMul){
+    var c=audio();
+    var t0 = at;
+    var g = c.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.22*(gainMul||1), t0+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0+dur);
+    g.connect(c.destination);
+
+    var o1=c.createOscillator(); o1.type='triangle'; o1.frequency.value=freq;
+    var o2=c.createOscillator(); o2.type='sine'; o2.frequency.value=freq*2.001;
+    var g2=c.createGain(); g2.gain.value=0.35; o2.connect(g2); g2.connect(g);
+    o1.connect(g);
+    o1.start(t0); o2.start(t0);
+    o1.stop(t0+dur+0.05); o2.stop(t0+dur+0.05);
+  }
+
+  var STEP = 0.30; // seconds per note
+
+  // Schedule a melody starting at absolute time `start`; returns when it ends.
+  function playMelody(idxs, start, gainMul){
+    var t = start;
+    for(var i=0;i<idxs.length;i++){
+      var swing = (i%2)? 0.02 : 0; // tiny lilt
+      ping(SCALE[idxs[i]], t+swing, STEP*0.95, gainMul);
+      t += STEP;
+    }
+    return t;
+  }
+
+  // ---------- visual ----------
+  var canvas=document.getElementById('viz'), g=canvas.getContext('2d');
+  function clearViz(){
+    g.clearRect(0,0,canvas.width,canvas.height);
+  }
+  // draw a person's melody as a little constellation
+  function drawConstellation(idxs, hue, alpha, phase){
+    var W=canvas.width, H=canvas.height;
+    var pad=40, n=idxs.length;
+    var stepX = (W-2*pad)/Math.max(1,n-1);
+    g.save();
+    g.globalAlpha=alpha;
+    g.strokeStyle='hsla('+hue+',70%,70%,0.55)';
+    g.lineWidth=2;
+    g.beginPath();
+    var pts=[];
+    for(var i=0;i<n;i++){
+      var x=pad+i*stepX;
+      var y=H-pad-(idxs[i]/(SCALE.length-1))*(H-2*pad);
+      pts.push([x,y]);
+      if(i===0) g.moveTo(x,y); else g.lineTo(x,y);
+    }
+    g.stroke();
+    for(var j=0;j<pts.length;j++){
+      var pulse = 1 + 0.5*Math.sin(phase*6 - j*0.9);
+      g.beginPath();
+      g.fillStyle='hsla('+hue+',85%,72%,0.95)';
+      g.shadowColor='hsla('+hue+',90%,70%,0.9)';
+      g.shadowBlur=10*pulse;
+      g.arc(pts[j][0],pts[j][1],3.2+1.2*pulse,0,7);
+      g.fill();
+    }
+    g.restore();
+  }
+
+  var vizItems=[]; // {idxs,hue}
+  var vizStart=0, vizDur=0, raf=null, activePlay=false;
+  function animateViz(items, totalDur){
+    vizItems=items; vizStart=performance.now(); vizDur=totalDur*1000;
+    activePlay=true;
+    if(raf) cancelAnimationFrame(raf);
+    function frame(now){
+      var el=(now-vizStart);
+      var ph=el/1000;
+      clearViz();
+      for(var i=0;i<vizItems.length;i++){
+        var fade = Math.min(1, el/300);
+        drawConstellation(vizItems[i].idxs, vizItems[i].hue, 0.35+0.65*fade, ph + i*0.4);
+      }
+      if(el < vizDur+600){ raf=requestAnimationFrame(frame); }
+      else { activePlay=false; }
+    }
+    raf=requestAnimationFrame(frame);
+  }
+
+  // ---------- state / people ----------
+  // The real household. (Christy = Chunjing — hon får båda melodierna att välja på? nej, håll det enkelt.)
+  var people = [
+    {name:'Knut'},
+    {name:'Christy'},
+    {name:'Ayden'},
+    {name:'Theo'},
+    {name:'Victor'}
+  ];
+  var selected = {}; // name -> true
+
+  var peopleEl=document.getElementById('people');
+  var nowEl=document.getElementById('now');
+  var famBtn=document.getElementById('famBtn');
+  var legendEl=document.getElementById('legend');
+
+  function esc(s){return s.replace(/[<>&]/g,function(c){return c==='<'?'&lt;':c==='>'?'&gt;':'&amp;';});}
+
+  function render(){
+    peopleEl.innerHTML='';
+    people.forEach(function(p){
+      var hue=hueFor(p.name);
+      var chip=document.createElement('div');
+      chip.className='chip'+(selected[p.name]?' sel':'');
+      chip.dataset.name=p.name;
+      chip.innerHTML='<span class="dot" style="color:hsl('+hue+',80%,65%);background:hsl('+hue+',80%,65%)"></span>'+esc(p.name)+
+        (p.custom?'<span class="x" title="ta bort">✕</span>':'');
+      chip.addEventListener('click', function(e){
+        if(e.target.classList.contains('x')){ removePerson(p.name); return; }
+        onChipClick(p, chip);
+      });
+      peopleEl.appendChild(p._el=chip);
+    });
+    updateFamBtn();
+  }
+
+  function updateFamBtn(){
+    var n=Object.keys(selected).length;
+    famBtn.disabled = n<2;
+    famBtn.textContent = n<2 ? '▶ Spela familjen' : '▶ Spela familjen ('+n+')';
+    var names=Object.keys(selected);
+    legendEl.textContent = names.length? 'Markerade till familjelåten: '+names.join(' · ') : 'Inga markerade än — klicka ett namn en andra gång för att lägga till det i familjelåten.';
+  }
+
+  var playingChip=null;
+  function onChipClick(p, chip){
+    // first click plays; if already the "focus", second click toggles selection
+    var idxs=notesFor(p.name), hue=hueFor(p.name);
+    // play solo
+    audio();
+    var start=audio().currentTime+0.05;
+    var end=playMelody(idxs, start, 1.0);
+    animateViz([{idxs:idxs,hue:hue}], end-start);
+    flash(chip);
+    nowEl.innerHTML='Spelar <b>'+esc(p.name)+'s</b> låt — '+idxs.length+' toner';
+    // toggle selection for the family song
+    if(selected[p.name]){ delete selected[p.name]; chip.classList.remove('sel'); }
+    else { selected[p.name]=true; chip.classList.add('sel'); }
+    updateFamBtn();
+  }
+
+  function flash(chip){
+    chip.classList.add('playing');
+    setTimeout(function(){ chip.classList.remove('playing'); }, 1400);
+  }
+
+  function removePerson(name){
+    people=people.filter(function(p){return p.name!==name;});
+    delete selected[name];
+    render();
+  }
+
+  document.getElementById('addBtn').addEventListener('click', addName);
+  document.getElementById('newName').addEventListener('keydown', function(e){ if(e.key==='Enter') addName(); });
+  function addName(){
+    var inp=document.getElementById('newName');
+    var v=inp.value.trim();
+    if(!v) return;
+    if(people.some(function(p){return p.name.toLowerCase()===v.toLowerCase();})){ inp.value=''; return; }
+    people.push({name:v, custom:true});
+    inp.value='';
+    render();
+    // play it immediately as a hello
+    var chip=people[people.length-1]._el;
+    onChipClick(people[people.length-1], chip);
+  }
+
+  // ---------- the family round (canon) ----------
+  famBtn.addEventListener('click', function(){
+    var names=Object.keys(selected);
+    if(names.length<2) return;
+    audio();
+    var start=audio().currentTime+0.15;
+    var items=[], maxEnd=start;
+    var offset=0;
+    // stagger entries by 2 beats -> a round. Lower gain per extra voice so it stays gentle.
+    var gain = Math.max(0.55, 1 - (names.length-2)*0.12);
+    names.forEach(function(nm, i){
+      var idxs=notesFor(nm), hue=hueFor(nm);
+      var voiceStart = start + i*STEP*2;
+      // each voice repeats twice so late entrants overlap the early ones
+      var e1=playMelody(idxs, voiceStart, gain);
+      var e2=playMelody(idxs, e1+STEP*0.5, gain);
+      maxEnd=Math.max(maxEnd, e2);
+      items.push({idxs:idxs,hue:hue});
+      if(people.find(function(p){return p.name===nm;})) flash(people.find(function(p){return p.name===nm;})._el);
+    });
+    animateViz(items, maxEnd-start);
+    nowEl.innerHTML='Spelar <b>familjelåten</b> — '+names.length+' röster i en runda ✨';
+  });
+
+  render();
+  updateFamBtn();
+
+  // draw the family faintly at rest so the canvas isn't empty
+  (function idle(){
+    if(!activePlay){
+      clearViz();
+      var all=people.slice(0,5);
+      var ph=performance.now()/1000;
+      all.forEach(function(p,i){ drawConstellation(notesFor(p.name), hueFor(p.name), 0.16, ph*0.15 + i*0.5); });
+    }
+    requestAnimationFrame(idle);
+  })();
+})();
+</script>
+</body>
+</html>
