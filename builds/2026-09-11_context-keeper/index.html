@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Context Keeper — Python's with statement</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --fg: #e8eaed;
+      --mut: #8a929c;
+      --card: #151a20;
+      --line: #232a33;
+      --acc: #f5c451;
+      --py: #3776ab;
+      --java: #ed8936;
+      --ok: #78e0a8;
+      --warn: #ffd27a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background:
+        radial-gradient(1200px 700px at 78% -8%, #1a2a4a 0%, rgba(26, 42, 74, 0) 55%),
+        radial-gradient(900px 600px at 8% 110%, #0a0a15 0%, rgba(10, 10, 21, 0) 50%),
+        var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+    header { margin-bottom: 40px; }
+    h1 {
+      font-size: 32px;
+      margin: 0 0 8px;
+      font-weight: 800;
+      background: linear-gradient(100deg, #fff 10%, var(--acc) 60%, #7ad0ff 120%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .sub { color: var(--mut); font-size: 15px; max-width: 70ch; }
+    .intro { background: linear-gradient(180deg, var(--card), var(--bg)); border: 1px solid var(--line);
+      border-radius: 12px; padding: 20px; margin: 24px 0; }
+    .intro p { margin: 0 0 12px; font-size: 14px; }
+    .intro p:last-child { margin-bottom: 0; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 32px 0; }
+    @media (max-width: 700px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+    .panel { background: linear-gradient(180deg, var(--card), var(--bg));
+      border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+    .panel h3 { margin: 0 0 14px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--mut); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .tag { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600;
+      font-family: 'Monaco', monospace; }
+    .tag.py { background: rgba(55, 118, 171, 0.2); color: var(--py); }
+    .tag.java { background: rgba(237, 137, 54, 0.2); color: var(--java); }
+    .code-block {
+      background: #0a0c0f;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #d0d0d0;
+      margin: 12px 0;
+      overflow-x: auto;
+    }
+    .code-block .kw { color: #ff79c6; } /* keyword */
+    .code-block .str { color: #a1efa8; } /* string */
+    .code-block .cmt { color: #6b7796; } /* comment */
+    .code-block .fun { color: #8be9fd; } /* function */
+    .code-block .cls { color: #ffb86c; } /* class */
+    .timeline {
+      position: relative;
+      padding: 0;
+    }
+    .timeline-step {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .timeline-step:last-child { margin-bottom: 0; }
+    .timeline-dot {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: 50%;
+      background: var(--mut);
+      border: 2px solid var(--bg);
+      position: relative;
+      top: 3px;
+    }
+    .timeline-step.active .timeline-dot {
+      background: var(--acc);
+      box-shadow: 0 0 12px var(--acc);
+    }
+    .timeline-step.error .timeline-dot {
+      background: #ff9aa2;
+    }
+    .timeline-content { flex: 1; }
+    .timeline-label { font-size: 13px; color: var(--mut); font-weight: 600; margin-bottom: 4px; }
+    .timeline-desc { font-size: 14px; color: var(--fg); margin-bottom: 6px; }
+    .timeline-code { background: #0a0c0f; border: 1px solid var(--line); border-radius: 6px;
+      padding: 10px; font-family: 'Monaco', monospace; font-size: 12px; }
+    .play-btn {
+      display: inline-block;
+      background: var(--acc);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+    .play-btn:hover { background: #ffda6a; transform: translate(0, -1px); box-shadow: 0 4px 12px rgba(245, 196, 81, 0.3); }
+    .play-btn:active { transform: translate(0, 0); }
+    .demo-output {
+      background: #0a0c0f;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 14px;
+      margin-top: 12px;
+      font-family: 'Monaco', monospace;
+      font-size: 12px;
+      min-height: 60px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .log-line { margin-bottom: 4px; color: #d0d0d0; }
+    .log-line.time { color: var(--acc); font-weight: 600; }
+    .log-line.ok { color: var(--ok); }
+    .log-line.err { color: #ff9aa2; }
+    .bridge { background: linear-gradient(135deg, rgba(55, 118, 171, 0.1) 0%, rgba(237, 137, 54, 0.1) 100%);
+      border: 1px solid; border-image: linear-gradient(135deg, var(--py), var(--java)) 1;
+      border-radius: 12px; padding: 16px; margin: 20px 0; }
+    .bridge h4 { margin: 0 0 10px; color: var(--fg); }
+    .bridge-code { display: flex; gap: 20px; margin-top: 12px; }
+    .bridge-code > div { flex: 1; }
+    .bridge-code h5 { margin: 0 0 8px; font-size: 12px; color: var(--mut); }
+    .bridge-code .code-block { margin: 0; }
+    .faq { margin: 40px 0; }
+    .faq-q { font-weight: 600; color: var(--fg); margin: 16px 0 8px; }
+    .faq-a { color: var(--mut); font-size: 14px; margin-bottom: 16px; }
+    footer {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px 24px;
+      color: var(--mut);
+      font-size: 13px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>The Context Keeper</h1>
+      <p class="sub">Learn Python's <code>with</code> statement by watching it manage a resource, end to end.</p>
+    </header>
+
+    <div class="intro">
+      <p><strong>The Problem:</strong> In Java, you use <code>try-with-resources</code> to promise the JVM: "open this thing, use it, then close it for me." Python's <code>with</code> statement does exactly that — but the mechanism is more visible.</p>
+      <p><strong>What you'll see:</strong> Pick a scenario below and watch a resource (a file, a database, a lock) flow through four stages: <strong>enter</strong>, <strong>use</strong>, <strong>exit</strong>, <strong>cleanup</strong>. Each stage maps to real Python code you'd write.</p>
+    </div>
+
+    <div class="two-col">
+      <div class="panel">
+        <h3><span class="tag py">Python</span> The with Statement</h3>
+        <p style="margin-top: 0; font-size: 14px; color: var(--mut);">Manages resources in a single scope:</p>
+        <div class="code-block">
+<span class="kw">with</span> <span class="fun">open</span>(<span class="str">'file.txt'</span>) <span class="kw">as</span> f:
+    <span class="cmt"># Use f here</span>
+    lines = f.<span class="fun">readlines</span>()
+<span class="cmt"># f is closed automatically</span>
+        </div>
+        <p style="margin-top: 12px; font-size: 13px; color: var(--mut);">The context manager promises: when you exit this block (normally or by exception), <strong>cleanup runs</strong>.</p>
+      </div>
+
+      <div class="panel">
+        <h3><span class="tag java">Java</span> try-with-resources</h3>
+        <p style="margin-top: 0; font-size: 14px; color: var(--mut);">Same idea, different syntax:</p>
+        <div class="code-block">
+<span class="kw">try</span> (<span class="cls">FileReader</span> f = 
+    <span class="kw">new</span> <span class="cls">FileReader</span>(<span class="str">"file.txt"</span>)) {
+    <span class="cmt">// Use f here</span>
+    String text = f.<span class="fun">read</span>();
+} <span class="cmt">// f closes automatically</span>
+        </div>
+        <p style="margin-top: 12px; font-size: 13px; color: var(--mut);">Both promise: allocate in the parens, use in the block, close at the brace.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Watch a Context Manager Work</h3>
+      <p style="font-size: 14px; color: var(--mut); margin: 0 0 12px;">Pick a scenario, press the button, and watch the timeline:</p>
+      
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+        <button class="play-btn" onclick="runDemo('file')">📂 Open a File</button>
+        <button class="play-btn" onclick="runDemo('lock')">🔒 Acquire a Lock</button>
+        <button class="play-btn" onclick="runDemo('db')">💾 Connect to DB</button>
+        <button class="play-btn" onclick="runDemo('error')">⚠️ Exception Inside</button>
+      </div>
+
+      <div class="timeline" id="timeline" style="display: none;">
+        <!-- Filled by JS -->
+      </div>
+      <div id="demo-output" class="demo-output" style="display: none;"></div>
+    </div>
+
+    <div class="bridge">
+      <h4>Anatomy of a Context Manager</h4>
+      <p style="margin: 0 0 12px; font-size: 14px;">Under the hood, a context manager is a class with two special methods:</p>
+      <div class="bridge-code">
+        <div>
+          <h5>The Class</h5>
+          <div class="code-block">
+<span class="kw">class</span> <span class="cls">FileContext</span>:
+    <span class="kw">def</span> <span class="fun">__enter__</span>(self):
+        <span class="cmt"># Setup: open the resource</span>
+        <span class="kw">return</span> self.file
+
+    <span class="kw">def</span> <span class="fun">__exit__</span>(self, exc_type, 
+                    exc_val, exc_tb):
+        <span class="cmt"># Cleanup: always runs</span>
+        self.file.<span class="fun">close</span>()
+          </div>
+        </div>
+        <div>
+          <h5>Using It</h5>
+          <div class="code-block">
+<span class="kw">with</span> <span class="cls">FileContext</span>() <span class="kw">as</span> f:
+    <span class="cmt"># After __enter__</span>
+    data = f.<span class="fun">read</span>()
+<span class="cmt"># __exit__ called here</span>
+<span class="cmt"># (or after an exception)</span>
+          </div>
+        </div>
+      </div>
+      <p style="margin: 12px 0 0; font-size: 13px; color: var(--mut);"><strong>The key insight:</strong> <code>__exit__</code> <em>always runs</em>, even if an exception flies. That's the guarantee — cleanup is not optional.</p>
+    </div>
+
+    <div class="panel">
+      <h3>A Closer Look: Exception Handling</h3>
+      <p style="font-size: 14px; color: var(--mut); margin: 0 0 12px;">When an exception happens inside the <code>with</code> block, Python calls <code>__exit__</code> with the exception details:</p>
+      <div class="code-block">
+<span class="kw">def</span> <span class="fun">__exit__</span>(self, exc_type, exc_val, exc_tb):
+    <span class="cmt"># exc_type: what error? (e.g. ValueError)</span>
+    <span class="cmt"># exc_val: the actual error object</span>
+    <span class="cmt"># exc_tb: the traceback</span>
+    
+    <span class="cmt"># If you return True, you suppress the exception</span>
+    <span class="cmt"># If you return False (or nothing), it propagates</span>
+    <span class="kw">if</span> exc_type <span class="kw">is</span> <span class="cls">IOError</span>:
+        <span class="cmt"># Maybe log it, then suppress</span>
+        <span class="fun">log</span>(<span class="str">"File error, recovering..."</span>)
+        <span class="kw">return</span> <span class="cls">True</span>  <span class="cmt"># Don't raise</span>
+      </div>
+      <p style="margin: 12px 0 0; font-size: 13px; color: var(--mut);"><strong>TL;DR:</strong> The context manager sees every exception and decides: suppress it or let it through. This is why <code>with</code> is safer than try/finally.</p>
+    </div>
+
+    <div class="faq">
+      <div class="faq-q">Why use `with` instead of try/finally?</div>
+      <div class="faq-a">The <code>with</code> statement is cleaner and guaranteed to work. If you write try/finally by hand, you can forget the finally block, or you can mess up the cleanup code. Context managers make it explicit: cleanup happens, period.</div>
+
+      <div class="faq-q">What's the difference between `__enter__` and `__exit__`?</div>
+      <div class="faq-a"><code>__enter__</code> is called when you enter the block (setup). It should return the thing you want to use (the file, the lock, whatever). <code>__exit__</code> is called when you leave the block (cleanup), whether you left normally or threw an exception. It receives the exception info (if any) and should return True to suppress the exception, or False/None to let it through.</div>
+
+      <div class="faq-q">Can I use `with` with multiple resources?</div>
+      <div class="faq-a">Yes! <code>with</code> accepts multiple context managers in one statement:
+        <div class="code-block" style="margin-top: 6px;">
+<span class="kw">with</span> <span class="fun">open</span>(<span class="str">'a'</span>) <span class="kw">as</span> f1, <span class="fun">open</span>(<span class="str">'b'</span>) <span class="kw">as</span> f2:
+    <span class="cmt"># Both f1 and f2 are open</span>
+        </div>
+        <p style="margin: 6px 0 0;">Python exits them in reverse order, so if f1's close fails, f2 still gets cleaned up.</p>
+      </div>
+
+      <div class="faq-q">When would I write my own context manager?</div>
+      <div class="faq-a">Anytime you have a resource that needs guaranteed cleanup. Examples: database connections, file locks, temporary directories, timing a section of code, changing and restoring state (like a config setting). Anything where "always clean up" is the rule.</div>
+    </div>
+
+    <footer>Built by Natt, 2026-09-11 — A small tool for learning Python idioms, one artifact at a time.</footer>
+  </div>
+
+  <script>
+    const scenarios = {
+      file: {
+        title: '📂 Open a File',
+        steps: [
+          { label: '__enter__', desc: 'Open file.txt for reading', code: 'f = open("file.txt", "r")', status: 'ok' },
+          { label: 'Use', desc: 'Read the file in your code block', code: 'lines = f.readlines()', status: 'ok' },
+          { label: '__exit__', desc: 'File closes automatically', code: 'f.close()  # via __exit__', status: 'ok' },
+        ],
+        output: [
+          { line: '[10:42:33] Enter: opening file.txt', cls: 'time' },
+          { line: '✓ File opened, 156 bytes', cls: 'ok' },
+          { line: '[10:42:33] Use: reading...', cls: 'time' },
+          { line: '✓ Read 12 lines', cls: 'ok' },
+          { line: '[10:42:33] Exit: closing file.txt', cls: 'time' },
+          { line: '✓ File closed, file descriptor released', cls: 'ok' },
+        ]
+      },
+      lock: {
+        title: '🔒 Acquire a Lock',
+        steps: [
+          { label: '__enter__', desc: 'Acquire the lock (may block)', code: 'lock.acquire()', status: 'ok' },
+          { label: 'Use', desc: 'Critical section: only you run here', code: 'shared_resource.update()', status: 'ok' },
+          { label: '__exit__', desc: 'Release the lock for others', code: 'lock.release()  # via __exit__', status: 'ok' },
+        ],
+        output: [
+          { line: '[10:42:33] Enter: waiting for lock...', cls: 'time' },
+          { line: '✓ Lock acquired (was held by thread-2, now released)', cls: 'ok' },
+          { line: '[10:42:33] Use: entering critical section', cls: 'time' },
+          { line: '✓ Updated shared_resource', cls: 'ok' },
+          { line: '[10:42:33] Exit: releasing lock', cls: 'time' },
+          { line: '✓ Lock released, thread-3 can now proceed', cls: 'ok' },
+        ]
+      },
+      db: {
+        title: '💾 Connect to Database',
+        steps: [
+          { label: '__enter__', desc: 'Open a database connection', code: 'conn = sqlite3.connect(":memory:")', status: 'ok' },
+          { label: 'Use', desc: 'Run queries inside the transaction', code: 'cursor.execute("INSERT INTO...")', status: 'ok' },
+          { label: '__exit__', desc: 'Commit or rollback, then close', code: 'conn.commit()  # or rollback', status: 'ok' },
+        ],
+        output: [
+          { line: '[10:42:33] Enter: connecting to database', cls: 'time' },
+          { line: '✓ Connection opened (transaction started)', cls: 'ok' },
+          { line: '[10:42:33] Use: executing query', cls: 'time' },
+          { line: '✓ Inserted 50 rows', cls: 'ok' },
+          { line: '[10:42:33] Exit: committing and closing', cls: 'time' },
+          { line: '✓ Transaction committed, connection closed', cls: 'ok' },
+        ]
+      },
+      error: {
+        title: '⚠️ Exception Inside',
+        steps: [
+          { label: '__enter__', desc: 'Open resource', code: 'f = open("data.txt")', status: 'ok' },
+          { label: 'Use (ERROR!)', desc: 'An exception is thrown', code: 'int(f.readline())  # ValueError!', status: 'error' },
+          { label: '__exit__ (still runs!)', desc: 'Even after exception, cleanup happens', code: 'f.close()  # ALWAYS happens', status: 'ok' },
+        ],
+        output: [
+          { line: '[10:42:33] Enter: opening file', cls: 'time' },
+          { line: '✓ File opened', cls: 'ok' },
+          { line: '[10:42:33] Use: parsing...', cls: 'time' },
+          { line: '✗ ValueError: invalid literal for int(): "hello"', cls: 'err' },
+          { line: '[10:42:33] Exit: called anyway!', cls: 'time' },
+          { line: '✓ File closed (cleanup is guaranteed)', cls: 'ok' },
+          { line: '✗ ValueError re-raised to caller', cls: 'err' },
+        ]
+      }
+    };
+
+    function runDemo(scenarioKey) {
+      const scenario = scenarios[scenarioKey];
+      const timeline = document.getElementById('timeline');
+      const output = document.getElementById('demo-output');
+
+      // Build timeline
+      let timelineHTML = '';
+      scenario.steps.forEach((step, i) => {
+        const isError = step.status === 'error';
+        timelineHTML += `
+          <div class="timeline-step ${step.status}">
+            <div class="timeline-dot"></div>
+            <div class="timeline-content">
+              <div class="timeline-label">${i + 1}. ${step.label}</div>
+              <div class="timeline-desc">${step.desc}</div>
+              <div class="timeline-code">${escapeHTML(step.code)}</div>
+            </div>
+          </div>
+        `;
+      });
+      timeline.innerHTML = timelineHTML;
+      timeline.style.display = 'block';
+
+      // Build output
+      let outputHTML = '';
+      scenario.output.forEach(item => {
+        outputHTML += `<div class="log-line ${item.cls}">${escapeHTML(item.line)}</div>`;
+      });
+      output.innerHTML = outputHTML;
+      output.style.display = 'block';
+
+      // Animate the timeline
+      const steps = timeline.querySelectorAll('.timeline-step');
+      steps.forEach((step, i) => {
+        setTimeout(() => {
+          step.style.opacity = '1';
+        }, i * 300);
+      });
+    }
+
+    function escapeHTML(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Auto-run the first scenario on load
+    setTimeout(() => runDemo('file'), 500);
+  </script>
+</body>
+</html>
